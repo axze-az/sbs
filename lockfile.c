@@ -5,6 +5,22 @@
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 
+int rdlockfile( const char* fname)
+{
+	struct flock lock;
+	int fd = open(fname, O_RDONLY);
+	if ( fd < 0)
+		return -errno;
+	lock.l_type = F_RDLCK;
+	lock.l_whence = SEEK_SET;
+	lock.l_start = 0;
+	lock.l_len = 0;
+	
+	if (fcntl(fd, F_SETLKW, &lock)<0)
+		return -errno;
+	return fd;
+}
+
 int lockfile( const char* fname)
 {
 	struct flock lock;

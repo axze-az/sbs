@@ -3,10 +3,11 @@
 
 #include <unistd.h>
 
-#define QUEUE_PROFILE ".queue"
-#define QUEUE_SEQ ".seq"
+#define QUEUE_PRIO ".prio"
+#define QUEUE_SEQ  ".seq"
+#define QUEUE_STOP ".stop"
+#define QUEUE_DISABLE ".disable"
 #define QUEUE_LCK ".lck"
-#define QUEUE_STOPPED ".stopped"
 
 struct queue {
 	char* _name;
@@ -15,8 +16,31 @@ struct queue {
 	int _prio;
 };
 
+/* return required/real size of pqdir */
+extern
+size_t queue_path(char* pqdir, size_t s, 
+		  const char* qname, const char* basedir);
+
 extern 
-int queue_setup(const char* name, const char* dir, 
+int queue_read_prio(const char* pqdir, int* prio);
+
+extern
+int queue_write_prio(const char* pqdir, int prio);
+
+extern
+int queue_lock(const char* pqdir, int* qfd);
+
+extern
+int queue_unlock(int qfd);
+
+extern
+int queue_read_stopped(const char* pqdir, int* isstopped);
+
+
+
+extern 
+int queue_setup(const char* qname, 
+		const char* basedir, 
 		int _prio,
 		uid_t uid, gid_t gid);
 

@@ -1,69 +1,64 @@
 #if !defined (__QUEUE_H__)
 #define __QUEUE_H__ 1
 
-#include <unistd.h>
+#include <list>
+#include <string>
+#include <iosfwd>
 
-#define QUEUE_SEQ  ".seq"
-#define QUEUE_STOP ".stop"
-#define QUEUE_DISABLE ".disable"
-#define QUEUE_LCK ".lck"
-
-struct queue {
-	struct queue* _next;
-	struct queue* _prev;
-	char* _name;
-	char* _queue_dir;
-	int _prio;
+class job
+{
+public:
+	job(const std::string& cmds);
+	int execute();
+	pid_t pid();
+	int stop();
+	int cont();
 };
-typedef struct queue queue_t;
 
-extern 
-int queue_read_queues(const char* cfgfile);
+class queue
+{
+private:
+	std::string _name;
+	int _prio;
+	std::string _dir;
+	std::string _file_stopped;
+	std::string _file_disabled;
+	std::string _file_seq;
+	int _seq_fd;
+	int _level; // recursive locks
+	std::string fname( const std::string& dir, 
+			   const std::string& name) const;
+public:
+	queue(const std::string& qname, 
+	      int prio,
+	      const std::string& basedir);
 
-queue_t* queue_alloc(const char* qname, int prio, const char* basedir);
+	bool exists() const;
+	bool setup(uid_t uid, gid_t gid);
 
-queue_t* queue_get(const char* qname);
+	void stop();
+	void start();
+	bool stopped() const;
 
-/* return required/real size of pqdir */
-extern
-size_t queue_path(char* pqdir, size_t s, 
-		  const char* qname, const char* basedir);
+	void disable();
+	void enable();
+	bool disabled() const;
 
-extern 
-int queue_read_prio(const char* pqdir, int* prio);
+	void list_jobs(std::ostream& s, uid_t uid) const;
+	void list_jobs(std::ostream& s) const;
 
-extern
-int queue_write_prio(const char* pqdir, int prio);
+	void add_job(std::istream& jobfile);
 
-extern
-int queue_lock(const char* pqdir, int* qfd);
-
-extern
-int queue_unlock(int qfd);
-
-extern
-int queue_read_stopped(const char* pqdir, int* isstopped);
-
-
-
-extern 
-int queue_setup(const char* qname, 
-		const char* basedir, 
-		int _prio,
-		uid_t uid, gid_t gid);
-
-extern 
-struct queue* queue_create(const char* name, const char* dir);
-
-extern 
-void queue_destroy(struct queue* q);
-
-extern
-int queue_pull_job( struct queue* q, char* jobfile, size_t s);
-
-extern
-int queue_push_job( struct queue* q, const char* jobfile);
+	bool lock();
+	bool unlock();
+};
 
 
 
+
+
+
+// Local variables:
+// mode: c++
+// end:
 #endif

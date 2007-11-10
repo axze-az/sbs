@@ -11,7 +11,8 @@ DEFS=\
 -DMAIL=\"${MAIL}\"
 
 CC=gcc
-LD=$(CC)
+CXX=g++
+LD=$(CXX)
 CFLAGS=-g $(DEFS)
 LDFLAGS=-g -L.
 ARFLAGS=rv

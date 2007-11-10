@@ -53,7 +53,7 @@ gloadavg(void)
  */
 {
     double result;
-#ifndef __FreeBSD__
+#if !defined( __FreeBSD__) && !defined(__linux__)
     FILE *fp;
     
     if((fp=fopen(PROC_DIR "loadavg","r")) == NULL)

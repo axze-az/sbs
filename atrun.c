@@ -63,6 +63,9 @@ static const char rcsid[] =
 #include <security/openpam.h>
 #endif
 
+#if !defined (MAXLOGNAME)
+#define MAXLOGNAME UT_NAMESIZE+2
+#endif
 #if (MAXLOGNAME-1) > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
 #else
@@ -326,8 +329,10 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
 	    perr("cannot change group");
 
+#if !defined (__linux__)
 	if (setlogin(pentry->pw_name))
 	    perr("cannot set login name");
+#endif
 
 	if (setuid(uid) < 0 || seteuid(uid) < 0)
 	    perr("cannot set user id");
@@ -372,8 +377,10 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
 	    perr("cannot change group");
 
+#if !defined (__linux__)
 	if (setlogin(pentry->pw_name))
 	    perr("cannot set login name");
+#endif
 
 	if (setuid(uid) < 0 || seteuid(uid) < 0)
 	    perr("cannot set user id");
@@ -531,7 +538,7 @@ main(int argc, char *argv[])
 	if ((S_IXUSR & buf.st_mode) && (run_time <=now)) {
 	    if (isupper(queue) && (strcmp(batch_name,dirent->d_name) > 0)) {
 		run_batch = 1;
-		strlcpy(batch_name, dirent->d_name, sizeof(batch_name));
+		strncpy(batch_name, dirent->d_name, sizeof(batch_name));
 		batch_uid = buf.st_uid;
 		batch_gid = buf.st_gid;
 	    }

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/at/at.c,v 1.30 2007/09/21 01:55:11 kevlo Exp $");
+// __FBSDID("$FreeBSD: src/usr.bin/at/at.c,v 1.30 2007/09/21 01:55:11 kevlo Exp $");
 
 #define _USE_BSD 1
 
@@ -56,6 +56,11 @@ __FBSDID("$FreeBSD: src/usr.bin/at/at.c,v 1.30 2007/09/21 01:55:11 kevlo Exp $")
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <utmp.h>
+
+#if !defined (MAXLOGNAME)
+#define MAXLOGNAME UT_NAMESIZE+2
+#endif
 
 /* Local headers */
 
@@ -121,7 +126,7 @@ static long *get_job_list(int, char *[], int *);
 
 /* Signal catching functions */
 
-static void sigc(int signo __unused)
+static void sigc(int signo __attribute__((unused)) )
 {
 /* If the user presses ^C, remove the spool file and exit 
  */
@@ -135,13 +140,13 @@ static void sigc(int signo __unused)
     _exit(EXIT_FAILURE);
 }
 
-static void alarmc(int signo __unused)
+static void alarmc(int signo __attribute__((unused)) )
 {
     char buf[1024];
 
     /* Time out after some seconds. */
-    strlcpy(buf, namep, sizeof(buf));
-    strlcat(buf, ": file locking timed out\n", sizeof(buf));
+    strncpy(buf, namep, sizeof(buf));
+    strncat(buf, ": file locking timed out\n", sizeof(buf));
     write(STDERR_FILENO, buf, strlen(buf));
     sigc(0);
 }

@@ -27,6 +27,6 @@
 
 #include <sys/cdefs.h>
 
-void	panic(const char *a) __dead2;
-void	perr(const char *a) __dead2;
-void	usage(void) __dead2;
+void	panic(const char *a) __attribute__((noreturn));
+void	perr(const char *a) __attribute__((noreturn));
+void	usage(void) __attribute__((noreturn));

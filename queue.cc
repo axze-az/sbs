@@ -1,5 +1,10 @@
 #include "queue.h"
 
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <iomanip>
+
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -8,14 +13,42 @@
 #include <limits.h>
 #include <stdio.h>
 
+int queue::read_queues(std::list<queue>& queues, 
+		       const std::string& cfgfile,
+		       const std::string& dir)
+{
+	std::ifstream f(cfgfile.c_str());
+	if ( f ) {
+		std::string line;
+		while (!std::getline(f,line).eof()) {
+			std::stringstream s(line);
+			std::string qn;
+			int pri=-1;
+			s >> qn >> pri;
+			if ( s.eof() ) {
+				queue t(qn,pri,dir);
+				queues.push_back(t);
+			}
+		}
+	}
+}
+
+int queue::setup_queues(std::list<queue>& queues, 
+			uid_t uid, gid_t gid);
+{
+	std::list<queue>::iterator b(queues.begin());
+	std::list<queue>::iterator e(queues.end());
+	
+}
+
 queue::queue( const std::string& name, int prio,
 	      const std::string& dir) 
 	: _name(name), 
 	  _prio(prio), 
-	  _dir(fname(dir,name)),
-	  _file_stopped(fname(".stopped",_dir)),
-	  _file_disabled(fname(".disabled",_dir)),
-	  _file_seq(fname(".seq",_dir))
+	  _dir(fname(name,dir)),
+	  _file_stopped(fname(".STOPPED",_dir)),
+	  _file_disabled(fname(".DISABLED",_dir)),
+	  _file_seq(fname(".SEQ",_dir))
 {
 }
 
@@ -23,10 +56,11 @@ std::string queue::fname( const std::string& name,
 			  const std::string& dir) const
 {
 	std::string res(dir);
-	std::string::size_type l(res.length());
-	if ( l && (_dir[l] != '/') )
+	std::string::size_type l(dir.length());
+	if ( l && (dir[l] != '/') )
 		res += '/';
 	res += name;
+	return res;
 }
 
 bool queue::exists () const 
@@ -47,6 +81,9 @@ bool queue::setup( uid_t uid, gid_t gid)
 		    S_IWUSR | S_IRUSR | S_IXUSR | 
 		    S_IRGRP | S_IXGRP | 
 		    S_IROTH | S_IXOTH ));
+	scoped_lock<queue> _m(*this);
+	if ( seq() < 0)
+		seq(0);
 	return r == 0;
 }
 
@@ -113,4 +150,38 @@ bool queue::lock()
 bool queue::unlock()
 {
 	bool r(close(_seq_fd) == 0);
+}
+
+
+int queue::seq() const
+{
+	char buf[128];
+	size_t s(read(_seq_fd,buf,sizeof(buf)));
+	if ( s <= 0 )
+		return -1;
+	buf[s]=0;
+	std::stringstream st;
+	st << buf;
+	int r;
+	st >> r;
+	return r;
+}
+
+void queue::seq(int seq) 
+{
+	lseek(_seq_fd, SEEK_SET, 0);
+	ftruncate(_seq_fd,0);
+	std::stringstream st;
+	st << std::dec << seq<< std::endl;
+	std::string str(st.str());
+	write(_seq_fd, str.c_str(), str.length());
+}
+
+std::ostream& operator<<(std::ostream& s, const queue& q)
+{
+	s << std::setw(20) << q.name() 
+	  << std::setw(3) << q.prio() 
+	  << ' ' << (q.disabled() ? "disabled" : "enabled")
+	  << ' ' << (q.stopped() ? "stopped" : "active");
+	return s;
 }

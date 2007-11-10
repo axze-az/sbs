@@ -8,6 +8,8 @@
 #include <limits.h>
 #include <stdio.h>
 
+
+
 static size_t append_path(char* fname, size_t s,
 			  const char* base, const char* app)
 {
@@ -59,6 +61,18 @@ static size_t stop_path(char* p, size_t s, const char* pqdir)
 static size_t disable_path(char* p, size_t s, const char* pqdir)
 {
 	return append_path(p,s,pqdir,QUEUE_DISABLE);
+}
+
+static struct queue {
+} g_queues;
+
+queue_t* queue_alloc( const char* name, int prio, const char* basedir)
+{
+	queue_t pres;
+	char queue_path[PATH_MAX];
+	do {
+		
+	} while (0);
 }
 
 int queue_read_prio(const char* pqdir, int* prio)

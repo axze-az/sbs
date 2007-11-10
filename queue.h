@@ -3,18 +3,26 @@
 
 #include <unistd.h>
 
-#define QUEUE_PRIO ".prio"
 #define QUEUE_SEQ  ".seq"
 #define QUEUE_STOP ".stop"
 #define QUEUE_DISABLE ".disable"
 #define QUEUE_LCK ".lck"
 
 struct queue {
+	struct queue* _next;
+	struct queue* _prev;
 	char* _name;
-	char* _dir;
 	char* _queue_dir;
 	int _prio;
 };
+typedef struct queue queue_t;
+
+extern 
+int queue_read_queues(const char* cfgfile);
+
+queue_t* queue_alloc(const char* qname, int prio, const char* basedir);
+
+queue_t* queue_get(const char* qname);
 
 /* return required/real size of pqdir */
 extern

@@ -1,12 +1,12 @@
 # Simple Batch System
 
-PREFIX=/home/axel/sbs
-#BINDIR=/home/axel/sbs
-SBS_JOBDIR=${PREFIX}/var/spool/sbsjobs
-SBS_SPOOLDIR=${PREFIX}/var/spool/sbsspool
+PREFIX=/home/sbs
+QUEUE_DIR=${PREFIX}/var/spool/sbs
+SBS_JOBDIR=${QUEUE_DIR}/sbsjobs/
+SBS_SPOOLDIR=${QUEUE_DIR}/sbsspool/
 PIDFILE=/home/axel/sbs/var/run/sbsd.pid
 DAEMON_UID=${shell grep ^daemon /etc/passwd | cut -d : -f 3}
-DAEMON_GID=${shell grep ^daemon /etc/passwd | cut -d : -f 3}
+DAEMON_GID=${shell grep ^daemon /etc/passwd | cut -d : -f 4}
 MAIL=/usr/bin/mail
 PERM_PATH=/etc
 
@@ -46,10 +46,17 @@ clean:
 
 install:
 	-mkdir ${PREFIX}
+	-mkdir ${PREFIX}/bin
 	install -m 755 sbs ${PREFIX}/bin 
 	install -m 755 sbsrun ${PREFIX}/bin 
+	-mkdir -p ${QUEUE_DIR}
 	-mkdir -p ${SBS_SPOOLDIR}
 	-mkdir -p ${SBS_JOBDIR}
+	-chown -R daemon.daemon ${QUEUE_DIR}
+	-chown -R daemon.daemon ${SBS_SPOOLDIR}
+	-chown -R daemon.daemon ${SBS_JOBDIR}
+	-chmod 01770 ${SBS_SPOOLDIR}
+	-chmod 01770 ${SBS_JOBDIR}
 
 distclean: clean
 	-$(RM) *~

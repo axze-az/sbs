@@ -24,7 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-//__FBSDID("$FreeBSD: src/usr.bin/at/panic.c,v 1.17 2002/05/16 00:47:14 tjr Exp $");
 
 /* System Headers */
 
@@ -79,14 +78,11 @@ void
 usage(void)
 {
 	/* Print usage and exit. */
-    fprintf(stderr, "usage: at [-q x] [-f file] [-m] time\n"
-		    "       at -c job [job ...]\n"
-		    "       at [-f file] -t [[CC]YY]MMDDhhmm[.SS]\n"
-		    "       at -r job [job ...]\n"
-		    "       at -l -q queuename\n"
-		    "       at -l [job ...]\n"
-		    "       atq [-q x] [-v]\n"
-		    "       atrm job [job ...]\n"
-		    "       batch [-f file] [-m]\n");
+    fprintf(stderr, 
+	    "usage: sbs [-q queue] [-f file] [-m]\n"
+	    "       sbs [-q queue] -c job [job ...]\n"
+	    "       sbs [-q queue] -d job [job ...]\n"
+	    "       sbs [-q queue] -l\n"
+	    "       sbs [-q queue] -l [job ...]\n");
     exit(EXIT_FAILURE);
 }

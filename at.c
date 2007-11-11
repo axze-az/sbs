@@ -93,7 +93,7 @@
 #define SIZE 255
 #define TIMESIZE 50
 
-enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
+enum { SBS_LIST, SBS_RM, SBS_QUEUE, SBS_CAT };	/* what program we want to run */
 
 /* File scope variables */
 
@@ -124,7 +124,6 @@ static char *cwdname(void);
 static void writefile(time_t runtimer, char queue);
 static void list_jobs(long *, int);
 static long nextjob(void);
-static time_t ttime(const char *arg);
 static int in_job_list(long, long *, int);
 static long *get_job_list(int, char *[], int *);
 
@@ -581,7 +580,7 @@ process_jobs(int argc, char **argv, int what)
 		if ((buf.st_uid != real_uid) && !(real_uid == 0))
 		    errx(EXIT_FAILURE, "%s: not owner", argv[i]);
 		switch (what) {
-		  case ATRM:
+		  case SBS_RM:
 
 		    PRIV_START
 
@@ -592,7 +591,7 @@ process_jobs(int argc, char **argv, int what)
 
 		    break;
 
-		  case CAT:
+		  case SBS_CAT:
 		    {
 			FILE *fp;
 			int ch;
@@ -620,77 +619,6 @@ process_jobs(int argc, char **argv, int what)
 	}
     }
 } /* delete_jobs */
-
-#define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
-
-static time_t
-ttime(const char *arg)
-{
-    /*
-     * This is pretty much a copy of stime_arg1() from touch.c.  I changed
-     * the return value and the argument list because it's more convenient
-     * (IMO) to do everything in one place. - Joe Halpin
-     */
-    struct timeval tv[2];
-    time_t now;
-    struct tm *t;
-    int yearset;
-    char *p;
-    
-    if (gettimeofday(&tv[0], NULL))
-	panic("Cannot get current time");
-    
-    /* Start with the current time. */
-    now = tv[0].tv_sec;
-    if ((t = localtime(&now)) == NULL)
-	panic("localtime");
-    /* [[CC]YY]MMDDhhmm[.SS] */
-    if ((p = strchr(arg, '.')) == NULL)
-	t->tm_sec = 0;		/* Seconds defaults to 0. */
-    else {
-	if (strlen(p + 1) != 2)
-	    goto terr;
-	*p++ = '\0';
-	t->tm_sec = ATOI2(p);
-    }
-    
-    yearset = 0;
-    switch(strlen(arg)) {
-    case 12:			/* CCYYMMDDhhmm */
-	t->tm_year = ATOI2(arg);
-	t->tm_year *= 100;
-	yearset = 1;
-	/* FALLTHROUGH */
-    case 10:			/* YYMMDDhhmm */
-	if (yearset) {
-	    yearset = ATOI2(arg);
-	    t->tm_year += yearset;
-	} else {
-	    yearset = ATOI2(arg);
-	    t->tm_year = yearset + 2000;
-	}
-	t->tm_year -= 1900;	/* Convert to UNIX time. */
-	/* FALLTHROUGH */
-    case 8:				/* MMDDhhmm */
-	t->tm_mon = ATOI2(arg);
-	--t->tm_mon;		/* Convert from 01-12 to 00-11 */
-	t->tm_mday = ATOI2(arg);
-	t->tm_hour = ATOI2(arg);
-	t->tm_min = ATOI2(arg);
-	break;
-    default:
-	goto terr;
-    }
-    
-    t->tm_isdst = -1;		/* Figure out DST. */
-    tv[0].tv_sec = tv[1].tv_sec = mktime(t);
-    if (tv[0].tv_sec != -1)
-	return tv[0].tv_sec;
-    else
-terr:
-	panic(
-	   "out of range or illegal time specification: [[CC]YY]MMDDhhmm[.SS]");
-}
 
 static long *
 get_job_list(int argc, char *argv[], int *joblen)
@@ -721,12 +649,10 @@ int
 main(int argc, char **argv)
 {
     int c;
-    char queue = DEFAULT_AT_QUEUE;
-    char queue_set = 0;
-    char *pgm;
-
-    int program = AT;			/* our default program */
-    const char *options = "q:f:t:rmvldbc"; /* default options for at */
+    char queue = 'j';
+    char* pgm;
+    int program = SBS_QUEUE;			/* our default program */
+    const char *options = "q:f:mdlc"; /* default options for at */
     time_t timer;
     long *joblist;
     int joblen;
@@ -745,30 +671,11 @@ main(int argc, char **argv)
 
     namep = pgm;
 
-    /* find out what this program is supposed to do
-     */
-    if (strcmp(pgm, "atq") == 0) {
-	program = ATQ;
-	options = "q:v";
-    }
-    else if (strcmp(pgm, "atrm") == 0) {
-	program = ATRM;
-	options = "";
-    }
-    else if (strcmp(pgm, "batch") == 0) {
-	program = BATCH;
-	options = "f:q:mv";
-    }
-
     /* process whatever options we can process
      */
     opterr=1;
     while ((c=getopt(argc, argv, options)) != -1)
 	switch (c) {
-	case 'v':   /* verify time settings */
-	    atverify = 1;
-	    break;
-
 	case 'm':   /* send mail when job is complete */
 	    send_mail = 1;
 	    break;
@@ -778,122 +685,62 @@ main(int argc, char **argv)
 	    break;
 	    
 	case 'q':    /* specify queue */
-	    if (strlen(optarg) > 1)
-		usage();
-
-	    atqueue = queue = *optarg;
-	    if (!(islower(queue)||isupper(queue)))
-		usage();
-
-	    queue_set = 1;
+	    fprintf(stderr,"queue definition ignored\n");
 	    break;
 
 	case 'd':
-	    warnx("-d is deprecated; use -r instead");
-	    /* fall through to 'r' */
-
-	case 'r':
-	    if (program != AT)
+	    if (program != SBS_QUEUE)
 		usage();
-
-	    program = ATRM;
-	    options = "";
-	    break;
-
-	case 't':
-	    if (program != AT)
-		usage();
-	    timer = ttime(optarg);
-	    break;
-
-	case 'l':
-	    if (program != AT)
-		usage();
-
-	    program = ATQ;
+	    program = SBS_RM;
 	    options = "q:";
 	    break;
 
-	case 'b':
-	    if (program != AT)
+	case 'l':
+	    if (program != SBS_QUEUE)
 		usage();
-
-	    program = BATCH;
-	    options = "f:q:mv";
+	    program = SBS_LIST;
+	    options = "q:";
 	    break;
 
 	case 'c':
-	    program = CAT;
-	    options = "";
+	    program = SBS_CAT;
+	    options = "q:";
 	    break;
 
-	default:
+	case 'h':
+	case '?':
 	    usage();
 	    break;
 	}
     /* end of options eating
      */
-
-    /* select our program
-     */
     if(!check_permission())
 	errx(EXIT_FAILURE, "you do not have permission to use this program");
     switch (program) {
-    case ATQ:
+    case SBS_LIST:
 
 	REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
 
-	if (queue_set == 0)
+        if (argc - optind > 0)
 	    joblist = get_job_list(argc - optind, argv + optind, &joblen);
 	list_jobs(joblist, joblen);
 	break;
 
-    case ATRM:
+    case SBS_RM:
 
 	REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
 
-	process_jobs(argc, argv, ATRM);
+	process_jobs(argc, argv, SBS_RM);
 	break;
 
-    case CAT:
+    case SBS_CAT:
 
-	process_jobs(argc, argv, CAT);
+	process_jobs(argc, argv, SBS_CAT);
 	break;
 
-    case AT:
-	/*
-	 * If timer is > -1, then the user gave the time with -t.  In that
-	 * case, it's already been set. If not, set it now.  
-	 */
-	if (timer == -1) 
-	    timer = parsetime(argc, argv);
-
-	if (atverify)
-	{
-	    struct tm *tm = localtime(&timer);
-	    fprintf(stderr, "%s\n", asctime(tm));
-	}
+    case SBS_QUEUE:
+	timer = time(NULL);
 	writefile(timer, queue);
-	break;
-
-    case BATCH:
-	if (queue_set)
-	    queue = toupper(queue);
-	else
-	    queue = DEFAULT_BATCH_QUEUE;
-
-	if (argc > optind)
-	    timer = parsetime(argc, argv);
-	else
-	    timer = time(NULL);
-	
-	if (atverify)
-	{
-	    struct tm *tm = localtime(&timer);
-	    fprintf(stderr, "%s\n", asctime(tm));
-	}
-
-        writefile(timer, queue);
 	break;
 
     default:

@@ -1,4 +1,7 @@
 /* 
+ *  sbs.c: Put file into sbs queue
+ *  Copyright (C) 2007 Axel Zeuner
+ *
  *  at.c : Put file into atrun queue
  *  Copyright (C) 1993, 1994 Thomas Koenig
  *
@@ -27,7 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-// __FBSDID("$FreeBSD: src/usr.bin/at/at.c,v 1.30 2007/09/21 01:55:11 kevlo Exp $");
 
 #define _USE_BSD 1
 
@@ -504,7 +506,7 @@ list_jobs(long *joblist, int len)
          */
 	if (!S_ISREG(buf.st_mode)
 	    || ((buf.st_uid != real_uid) && ! (real_uid == 0))
-	    || !(S_IXUSR & buf.st_mode || atverify))
+	    || !((S_IXUSR|S_IRUSR) & buf.st_mode || atverify))
 	    continue;
 
 	if(sscanf(dirent->d_name, "%c%5lx%8lx", &queue, &jobno, &ctm)!=3)
@@ -519,19 +521,20 @@ list_jobs(long *joblist, int len)
 
 	runtimer = 60*(time_t) ctm;
 	runtime = *localtime(&runtimer);
-	strftime(timestr, TIMESIZE, "%+", &runtime);
+	strftime(timestr, TIMESIZE, "%F %T", &runtime);
 	if (first) {
-	    printf("Date\t\t\t\tOwner\t\tQueue\tJob#\n");
+	    printf("# %-18s %-16s %-16s %-8s %-8s\n",
+		   "Queued", "Owner", "Queue", "Job", "Status" );
 	    first=0;
 	}
 	pw = getpwuid(buf.st_uid);
 
-	printf("%s\t%-16s%c%s\t%ld\n", 
+	printf("%-20s %-16s %-16s %-8ld %-8s\n", 
 	       timestr, 
 	       pw ? pw->pw_name : "???", 
-	       queue, 
-	       (S_IXUSR & buf.st_mode) ? "":"(done)", 
-	       jobno);
+	       "default", 
+	       jobno,
+	       (S_IXUSR & buf.st_mode) ? "queued":"ACTIVE");
     }
     PRIV_END
 }

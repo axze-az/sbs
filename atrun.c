@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
+#include <errno.h>
 #ifdef __FreeBSD__
 #include <paths.h>
 #else
@@ -143,6 +144,9 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     int fflags;
     long nuid;
     long ngid;
+    struct timeval starttime,endtime;
+    int lockfd;
+    struct flock lck;
 #ifdef PAM
     pam_handle_t *pamh = NULL;
     int pam_err;
@@ -152,21 +156,40 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     };
 #endif
 
-    PRIV_START
-
-    if (chmod(filename, S_IRUSR) != 0)
-    {
-	perr("cannot change file permissions");
-    }
-
-    PRIV_END
-
     pid = fork();
     if (pid == -1)
 	perr("cannot fork");
     
     else if (pid != 0)
 	return;
+
+    /* current working directory is AT_JOBDIR, make sure that only on
+       job can execute */
+    lockfd=open(".active", O_RDWR | O_CREAT,
+		S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+    if ( lockfd < 0) 
+	perr("could not open " ATJOB_DIR ".active");
+    
+    lck.l_type = F_WRLCK;
+    lck.l_whence = SEEK_SET;
+    lck.l_start = 0;
+    lck.l_len = 0;
+    if (fcntl(lockfd, F_SETLK, &lck)<0) {
+	if ( errno == EAGAIN ) 
+	    exit(0);
+	perr("lock on " ATJOB_DIR ".active failed");
+    }
+    if ( fcntl (lockfd, F_SETFD, FD_CLOEXEC)< 0)
+	perr("close on exec on " ATJOB_DIR ".active failed");
+
+    PRIV_START
+
+    if (chmod(filename, S_IRUSR) != 0)
+    {
+	perrx("cannot change file permissions");
+    }
+
+    PRIV_END
 
     /* Let's see who we mail to.  Hopefully, we can read it from
      * the command file; if not, send it to the owner, or, failing that,
@@ -273,7 +296,9 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
- 
+
+    gettimeofday(&starttime,NULL);
+
     pid = fork();
     if (pid < 0)
 	perr("error in fork");
@@ -351,6 +376,8 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     close(fd_in);
     close(fd_out);
     waitpid(pid, (int *) NULL, 0);
+    
+    gettimeofday(&endtime, NULL);
 
     /* Send mail.  Unlink the output file first, so it is deleted after
      * the run.
@@ -359,9 +386,31 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     if (open(filename, O_RDONLY) != STDIN_FILENO)
         perr("open of jobfile failed");
 
-    unlink(filename);
     if ((buf.st_size != size) || send_mail)
     {    
+	struct rusage rus;
+	// centi secs
+	long user, sys, elapsed;
+	stream = fopen(filename,"a");
+	if ( stream ) 
+	{
+	    getrusage(RUSAGE_CHILDREN,&rus);
+	    user = rus.ru_utime.tv_sec *100 + rus.ru_utime.tv_usec/(10*1000);
+	    sys = rus.ru_stime.tv_sec *100 + rus.ru_stime.tv_usec/(10*1000);
+	    elapsed = endtime.tv_sec *100 + endtime.tv_usec/(10*1000);
+	    elapsed-= starttime.tv_sec *100 + starttime.tv_usec/(10*1000);
+	    fprintf(stream, 
+		    "Ressource usage:\n"
+		    "%d.%02duser %d.%02dsystem %d:%02d.%02delapsed "
+		    "%.0f%%CPU\n",
+		    user/100, user % 100, sys/100, sys/100, 
+		    elapsed/(100*60), 
+		    elapsed%(60*100)/100, 
+		    (elapsed%(60*100))%100,
+		    ((double)user + sys)/elapsed);
+	    fclose(stream);
+	}
+	unlink(filename);
 	PRIV_START
 
 #ifdef LOGIN_CAP
@@ -400,6 +449,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
 	PRIV_END
     }
+    unlink(filename);
     exit(EXIT_SUCCESS);
 }
 

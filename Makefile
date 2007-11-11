@@ -8,7 +8,7 @@ PIDFILE=/home/axel/sbs/var/run/sbsd.pid
 DAEMON_UID=${shell grep ^daemon /etc/passwd | cut -d : -f 3}
 DAEMON_GID=${shell grep ^daemon /etc/passwd | cut -d : -f 4}
 MAIL=/usr/bin/mail
-PERM_PATH=/etc
+PERM_PATH=${PREFIX}/etc/
 
 # No pam for now -DPAM=1
 DEFS= \
@@ -47,8 +47,15 @@ clean:
 install:
 	-mkdir ${PREFIX}
 	-mkdir ${PREFIX}/bin
-	install -m 755 sbs ${PREFIX}/bin 
-	install -m 755 sbsrun ${PREFIX}/bin 
+# sbs
+	install -m 0755 sbs ${PREFIX}/bin 
+	chown root.root ${PREFIX}/bin/sbs
+	chmod 4755 ${PREFIX}/bin/sbs
+# sbsrun
+	install -m 0755 sbsrun ${PREFIX}/bin 
+	chown root.root ${PREFIX}/bin/sbsrun
+	chmod 0755 ${PREFIX}/bin/sbsrun
+# spool directory
 	-mkdir -p ${QUEUE_DIR}
 	-mkdir -p ${SBS_SPOOLDIR}
 	-mkdir -p ${SBS_JOBDIR}
@@ -57,6 +64,11 @@ install:
 	-chown -R daemon.daemon ${SBS_JOBDIR}
 	-chmod 01770 ${SBS_SPOOLDIR}
 	-chmod 01770 ${SBS_JOBDIR}
+# etc sbs.deny
+	-mkdir -p ${PERM_PATH}
+	touch ${PERM_PATH}sbs.deny
+	-chown root.daemon ${PERM_PATH}sbs.deny
+	-chmod 0420 ${PERM_PATH}sbs.deny
 
 distclean: clean
 	-$(RM) *~

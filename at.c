@@ -479,11 +479,11 @@ list_jobs(long *joblist, int len)
 #ifdef __FreeBSD__
     (void) setlocale(LC_TIME, "");
 #endif
-    fprintf(stderr, "uid: %d gid: %d\n", geteuid(), getegid());
+    /* fprintf(stderr, "uid: %d gid: %d\n", geteuid(), getegid()); */
 
     PRIV_START
 
-    fprintf(stderr, "uid: %d gid: %d\n", geteuid(), getegid());
+    /* fprintf(stderr, "uid: %d gid: %d\n", geteuid(), getegid()); */
 
     if (chdir(ATJOB_DIR) != 0)
 	perr("cannot change to " ATJOB_DIR);

@@ -24,8 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-// __FBSDID("$FreeBSD: src/usr.bin/at/perm.c,v 1.13 2001/12/10 21:13:01 dwmalone Exp $");
-
 /* System Headers */
 
 #include <sys/types.h>
@@ -94,7 +92,7 @@ int check_permission(void)
 
     PRIV_START
 
-    fp=fopen(PERM_PATH "at.allow","r");
+    fp=fopen(PERM_PATH "sbs.allow","r");
 
     PRIV_END
 
@@ -107,7 +105,7 @@ int check_permission(void)
 
 	PRIV_START
 
-	fp=fopen(PERM_PATH "at.deny", "r");
+	fp=fopen(PERM_PATH "sbs.deny", "r");
 
 	PRIV_END
 
@@ -116,9 +114,9 @@ int check_permission(void)
 	    return !check_for_user(fp, pentry->pw_name);
 	}
 	else if (errno != ENOENT)
-	    warn("at.deny");
+	    warn("sbs.deny");
     }
     else
-	warn("at.allow");
+	warn("sbs.allow");
     return 0;
 }

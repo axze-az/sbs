@@ -105,7 +105,9 @@ static int send_mail = 0;
 
 extern char **environ;
 int fcreated;
-char atfile[] = ATJOB_DIR "12345678901234";
+char atfile[PATH_MAX] = { 
+	ATJOB_DIR "12345678901234"
+};
 
 char *atinput = (char*)0;	/* where to get input from */
 char atqueue = 0;		/* which queue to examine for jobs (atq) */
@@ -339,7 +341,7 @@ writefile(time_t runtimer, char queue)
 	if (fpin == NULL)
 	    perr("cannot open input file");
     }
-    fprintf(fp, "#!/bin/sh\n# atrun uid=%ld gid=%ld\n# mail %*s %d\n",
+    fprintf(fp, "#!/bin/sh\n# sbsrun uid=%ld gid=%ld\n# mail %*s %d\n",
 	(long) real_uid, (long) real_gid, MAXLOGNAME - 1, mailname,
 	send_mail);
 

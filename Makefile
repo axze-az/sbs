@@ -7,7 +7,7 @@ SBS_SPOOLDIR=${QUEUE_DIR}/sbsspool/
 PIDFILE=/home/axel/sbs/var/run/sbsd.pid
 DAEMON_UID=${shell grep ^daemon /etc/passwd | cut -d : -f 3}
 DAEMON_GID=${shell grep ^daemon /etc/passwd | cut -d : -f 4}
-MAIL=/usr/bin/mail
+MAIL=/usr/sbin/sendmail
 PERM_PATH=${PREFIX}/etc/
 
 # No pam for now -DPAM=1
@@ -28,7 +28,7 @@ CFLAGS=-g $(DEFS) -I.
 LDFLAGS=-g -L.
 ARFLAGS=rv
 
-all: progs
+all: progs sbs.cron
 
 PROGS= sbsrun sbs
 progs: $(PROGS)
@@ -41,27 +41,34 @@ SBS_O=at.o perm.o parsetime.o panic.o
 sbs: $(SBS_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
 
-clean:
-	-$(RM) *.o $(PROGS) 
+sbs.cron: Makefile
+	echo "# /etc/cron.d/sbs crontab entry for the sbs package" >$@
+	echo "SHELL=/bin/sh" >>$@
+	echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >>$@
+	echo "0-59/0  *       *       *       *       root test -x ${PREFIX}/sbin/sbsrun && ${PREFIX}/sbin/sbsrun" >>$@
 
-install:
+clean:
+	-$(RM) *.o $(PROGS) sbs.cron
+
+install: all 
 	-mkdir ${PREFIX}
-	-mkdir ${PREFIX}/bin
 # sbs
+	-mkdir ${PREFIX}/bin
 	install -m 0755 sbs ${PREFIX}/bin 
 	chown root.root ${PREFIX}/bin/sbs
 	chmod 4755 ${PREFIX}/bin/sbs
 # sbsrun
-	install -m 0755 sbsrun ${PREFIX}/bin 
-	chown root.root ${PREFIX}/bin/sbsrun
-	chmod 0755 ${PREFIX}/bin/sbsrun
+	-mkdir ${PREFIX}/sbin
+	install -m 0755 sbsrun ${PREFIX}/sbin 
+	chown root.root ${PREFIX}/sbin/sbsrun
+	chmod 0755 ${PREFIX}/sbin/sbsrun
 # spool directory
 	-mkdir -p ${QUEUE_DIR}
 	-mkdir -p ${SBS_SPOOLDIR}
 	-mkdir -p ${SBS_JOBDIR}
-	-chown -R daemon.daemon ${QUEUE_DIR}
-	-chown -R daemon.daemon ${SBS_SPOOLDIR}
-	-chown -R daemon.daemon ${SBS_JOBDIR}
+	-chown daemon.daemon ${QUEUE_DIR}
+	-chown daemon.daemon ${SBS_SPOOLDIR}
+	-chown daemon.daemon ${SBS_JOBDIR}
 	-chmod 01770 ${SBS_SPOOLDIR}
 	-chmod 01770 ${SBS_JOBDIR}
 # etc sbs.deny
@@ -69,6 +76,9 @@ install:
 	touch ${PERM_PATH}sbs.deny
 	-chown root.daemon ${PERM_PATH}sbs.deny
 	-chmod 0420 ${PERM_PATH}sbs.deny
+# etc sbsrun crontab entry
+	-mkdir -p ${PERM_PATH}cron.d
+	install -m 0644 sbs.cron ${PERM_PATH}cron.d/sbs
 
 distclean: clean
 	-$(RM) *~

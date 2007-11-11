@@ -95,12 +95,12 @@ static const char rcsid[] =
 
 /* File scope variables */
 
-static const char * const atrun = "atrun"; /* service name for syslog etc. */
+static const char * const sbsd = "sbsrun"; /* service name for syslog etc. */
 static int debug = 0;
 
 void perr(const char *fmt, ...);
 void perrx(const char *fmt, ...);
-static void usage(void);
+static void usage(const char* argv0);
 
 /* Local functions */
 static int
@@ -125,7 +125,8 @@ myfork(void)
 #endif
 
 static void
-run_file(const char *filename, uid_t uid, gid_t gid)
+run_file(const char *filename, uid_t uid, gid_t gid, 
+	 unsigned long jobno, int niceval)
 {
 /* Run a file by spawning off a process which redirects I/O,
  * spawns a subshell, then waits for it to complete and sends
@@ -134,7 +135,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     pid_t pid;
     int fd_out, fd_in;
     int queue;
-    char mailbuf[LOGNAMESIZE + 1], fmt[49];
+    char mailbuf[LOGNAMESIZE + 1], fmt[50];
     char *mailname = NULL;
     FILE *stream;
     int send_mail = 0;
@@ -147,6 +148,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     struct timeval starttime,endtime;
     int lockfd;
     struct flock lck;
+    char subject[256];
 #ifdef PAM
     pam_handle_t *pamh = NULL;
     int pam_err;
@@ -191,6 +193,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     PRIV_END
 
+    syslog(LOG_INFO, "executing default/%ld from %s", jobno, filename); 
     /* Let's see who we mail to.  Hopefully, we can read it from
      * the command file; if not, send it to the owner, or, failing that,
      * to root.
@@ -256,7 +259,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     fcntl(fd_in, F_SETFD, fflags & ~FD_CLOEXEC);
 
     snprintf(fmt, sizeof(fmt),
-	"#!/bin/sh\n# atrun uid=%%ld gid=%%ld\n# mail %%%ds %%d",
+	"#!/bin/sh\n# sbsrun uid=%%ld gid=%%ld\n# mail %%%ds %%d",
                           LOGNAMESIZE);
 
     if (fscanf(stream, fmt, &nuid, &ngid, mailbuf, &send_mail) != 4)
@@ -287,9 +290,13 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 		O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR)) < 0)
 	perr("cannot create output file");
 
-    write_string(fd_out, "Subject: Output from your job ");
-    write_string(fd_out, filename);
-    write_string(fd_out, "\n\n");
+    snprintf(subject,sizeof(subject),
+	     "Subject: job sbs/default/%ld output\n", 
+	     jobno);
+    write_string(fd_out,subject);
+    write_string(fd_out,"To: ");
+    write_string(fd_out,mailname);
+    write_string(fd_out,"\n\n");
     fstat(fd_out, &buf);
     size = buf.st_size;
 
@@ -307,6 +314,8 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     {
 	char *nul = NULL;
 	char **nenvp = &nul;
+
+	close(lockfd);
 
 	/* Set up things for the child; we want standard input from the input file,
 	 * and standard output and error sent to our output file.
@@ -333,7 +342,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
 	PRIV_START
 
-        nice(tolower(queue) - 'a');
+        nice(niceval);
 	
 #ifdef LOGIN_CAP
 	/*
@@ -513,11 +522,13 @@ main(int argc, char *argv[])
     unsigned long jobno;
     char queue;
     time_t now, run_time;
-    char batch_name[] = "Z2345678901234";
+    char batch_name[PATH_MAX];
     uid_t batch_uid;
     gid_t batch_gid;
+    unsigned long batch_jobno=(unsigned long)-1;
+    unsigned long batch_ctm=(unsigned long)-1;
+    int batch_run = 0;
     int c;
-    int run_batch;
     double load_avg = LOADAVG_MX;
 
 /* We don't need root privileges all the time; running under uid and gid daemon
@@ -526,7 +537,7 @@ main(int argc, char *argv[])
 
     RELINQUISH_PRIVS_ROOT(DAEMON_UID, DAEMON_GID)
 
-    openlog(atrun, LOG_PID, LOG_CRON);
+    openlog(sbsd, LOG_PID, LOG_DAEMON);
 
     opterr = 0;
     while((c=getopt(argc, argv, "dl:"))!= -1)
@@ -546,7 +557,8 @@ main(int argc, char *argv[])
 
 	case '?':
 	default:
-	    usage();
+	    debug =1;
+	    usage(argv[0]);
 	}
     }
 
@@ -567,7 +579,6 @@ main(int argc, char *argv[])
 	perr("cannot read %s", ATJOB_DIR);
 
     now = time(NULL);
-    run_batch = 0;
     batch_uid = (uid_t) -1;
     batch_gid = (gid_t) -1;
 
@@ -585,40 +596,39 @@ main(int argc, char *argv[])
 
 	run_time = (time_t) ctm*60;
 
-	if ((S_IXUSR & buf.st_mode) && (run_time <=now)) {
-	    if (isupper(queue) && (strcmp(batch_name,dirent->d_name) > 0)) {
-		run_batch = 1;
+	if (S_IXUSR & buf.st_mode) {
+	    if ( (batch_ctm > ctm) ||
+		 ((batch_ctm == ctm) && (batch_jobno > jobno))) {
+		batch_run = 1;
 		strncpy(batch_name, dirent->d_name, sizeof(batch_name));
 		batch_uid = buf.st_uid;
 		batch_gid = buf.st_gid;
+		batch_jobno= jobno;
+		batch_ctm = ctm;
 	    }
-	
-	/* The file is executable and old enough
-	 */
-	    if (islower(queue))
-		run_file(dirent->d_name, buf.st_uid, buf.st_gid);
 	}
 	/*  Delete older files
 	 */
-	if ((run_time < now) && !(S_IXUSR & buf.st_mode) && (S_IRUSR & buf.st_mode))
+	if ((run_time < now) && !(S_IXUSR & buf.st_mode) && 
+	    (S_IRUSR & buf.st_mode))
 	    unlink(dirent->d_name);
     }
     /* run the single batch file, if any
     */
-    if (run_batch && (gloadavg() < load_avg))
-	run_file(batch_name, batch_uid, batch_gid);
+    if (batch_run && (gloadavg() < load_avg))
+	run_file(batch_name, batch_uid, batch_gid,batch_jobno,19);
 
     closelog();
     exit(EXIT_SUCCESS);
 }
 
 static void
-usage(void)
+usage(const char* argv0)
 {
     if (debug)
-	fprintf(stderr, "usage: atrun [-l load_avg] [-d]\n");
+	fprintf(stderr, "usage: %s [-l load_avg] [-d]\n",argv0);
     else
-	syslog(LOG_ERR, "usage: atrun [-l load_avg] [-d]"); 
+	syslog(LOG_ERR, "usage: %s [-l load_avg] [-d]",argv0); 
 
     exit(EXIT_FAILURE);
 }

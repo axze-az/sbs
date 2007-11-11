@@ -534,8 +534,8 @@ main(int argc, char *argv[])
 /* We don't need root privileges all the time; running under uid and gid daemon
  * is fine.
  */
-
-    RELINQUISH_PRIVS_ROOT(DAEMON_UID, DAEMON_GID)
+    daemon_ids();
+    RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid)
 
     openlog(sbsd, LOG_PID, LOG_DAEMON);
 

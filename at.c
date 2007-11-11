@@ -68,7 +68,6 @@
 
 #include "at.h"
 #include "panic.h"
-#include "parsetime.h"
 #include "perm.h"
 
 #define MAIN
@@ -304,7 +303,7 @@ writefile(time_t runtimer, char queue)
      * to the directory, if necessary.
      */
 
-    REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
+    REDUCE_PRIV(daemon_uid, daemon_gid)
 
     /* We've successfully created the file; let's set the flag so it 
      * gets removed in case of an interrupt or error.
@@ -660,6 +659,9 @@ main(int argc, char **argv)
     joblist = NULL;
     joblen = 0;
     timer = -1;
+
+    daemon_ids();
+
     RELINQUISH_PRIVS
 
     /* Eat any leading paths
@@ -719,7 +721,7 @@ main(int argc, char **argv)
     switch (program) {
     case SBS_LIST:
 
-	REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
+	REDUCE_PRIV(daemon_uid, daemon_gid)
 
         if (argc - optind > 0)
 	    joblist = get_job_list(argc - optind, argv + optind, &joblen);
@@ -728,7 +730,7 @@ main(int argc, char **argv)
 
     case SBS_RM:
 
-	REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
+	REDUCE_PRIV(daemon_uid, daemon_gid)
 
 	process_jobs(argc, argv, SBS_RM);
 	break;

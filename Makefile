@@ -5,8 +5,8 @@ QUEUE_DIR=${PREFIX}/var/spool/sbs
 SBS_JOBDIR=${QUEUE_DIR}/sbsjobs/
 SBS_SPOOLDIR=${QUEUE_DIR}/sbsspool/
 PIDFILE=/home/axel/sbs/var/run/sbsd.pid
-DAEMON_UID=${shell grep ^daemon /etc/passwd | cut -d : -f 3}
-DAEMON_GID=${shell grep ^daemon /etc/passwd | cut -d : -f 4}
+DAEMON_USERNAME=daemon
+DAEMON_GROUPNAME=daemon
 MAIL=/usr/sbin/sendmail
 PERM_PATH=${PREFIX}/etc/
 
@@ -16,8 +16,8 @@ DEFS= \
 -DPERM_PATH=\"${PERM_PATH}\" \
 -DATJOB_DIR=\"${SBS_JOBDIR}\" \
 -DATSPOOL_DIR=\"${SBS_SPOOLDIR}\" \
--DDAEMON_UID=${DAEMON_UID} \
--DDAEMON_GID=${DAEMON_GID} 
+-DDAEMON_USERNAME=\"${DAEMON_USERNAME}\" \
+-DDAEMON_GROUPNAME=\"${DAEMON_GROUPNAME}\" 
 
 
 CC=gcc
@@ -32,11 +32,11 @@ all: progs sbs.cron
 PROGS= sbsrun sbs
 progs: $(PROGS)
 
-SBSRUN_O=atrun.o gloadavg.o
+SBSRUN_O=atrun.o gloadavg.o privs.o
 sbsrun: $(SBSRUN_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBSRUN_O) 
 
-SBS_O=at.o perm.o parsetime.o panic.o
+SBS_O=at.o perm.o panic.o privs.o
 sbs: $(SBS_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
 

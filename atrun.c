@@ -459,9 +459,6 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 	PRIV_END
     }
     unlink(filename);
-    if (chdir(ATJOB_DIR) < 0)
-	perr("cannot chdir to %s", ATJOB_DIR);
-    unlink(filename);
     exit(EXIT_SUCCESS);
 }
 

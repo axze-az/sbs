@@ -5,10 +5,10 @@ IROOT=${DESTDIR}
 # Directories
 PREFIX=/home/sbs
 QUEUE_DIR=${PREFIX}/var/spool/sbs
-SBS_JOBDIR=${QUEUE_DIR}/sbsjobs/
-SBS_SPOOLDIR=${QUEUE_DIR}/sbsspool/
+SBS_JOBDIR=${QUEUE_DIR}/jobs/
+SBS_SPOOLDIR=${QUEUE_DIR}/spool/
 PIDFILE=${PREFIX}/var/run/sbsd.pid
-PERM_PATH=${PREFIX}/etc/sbs
+PERM_PATH=${PREFIX}/etc/sbs/
 CRON_D_PATH=${PREFIX}/etc/cron.d
 
 DAEMON_USERNAME=daemon
@@ -49,7 +49,7 @@ sbs.cron: Makefile
 	echo "# /etc/cron.d/sbs crontab entry for the sbs package" >$@
 	echo "SHELL=/bin/sh" >>$@
 	echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >>$@
-	echo "0-59/0  *       *       *       *       root test -x ${IROOT}/sbin/sbsrun && ${IROOT}/sbin/sbsrun" >>$@
+	echo "0-59/2  *       *       *       *       root test -x ${IROOT}/usr/sbin/sbsrun && ${IROOT}/usr/sbin/sbsrun" >>$@
 
 clean:
 	-$(RM) *.o $(PROGS) sbs.cron
@@ -57,15 +57,15 @@ clean:
 install: all 
 	-mkdir ${IROOT}
 # sbs
-	-mkdir ${IROOT}/${PREFIX}/bin
-	install -m 0755 sbs ${IROOT}/${PREFIX}/bin 
-	chown root.root ${IROOT}/${PREFIX}/bin/sbs
-	chmod 4755 ${IROOT}/${PREFIX}/bin/sbs
+	-mkdir -p ${IROOT}/${PREFIX}/usr/bin
+	install -m 0755 sbs ${IROOT}/${PREFIX}/usr/bin 
+	chown root.root ${IROOT}/${PREFIX}/usr/bin/sbs
+	chmod 4755 ${IROOT}/${PREFIX}/usr/bin/sbs
 # sbsrun
-	-mkdir ${IROOT}/${PREFIX}/sbin
-	install -m 0755 sbsrun ${IROOT}/${PREFIX}/sbin 
-	chown root.root ${IROOT}/${PREFIX}/sbin/sbsrun
-	chmod 0755 ${IROOT}/${PREFIX}/sbin/sbsrun
+	-mkdir ${IROOT}/${PREFIX}/usr/sbin
+	install -m 0755 sbsrun ${IROOT}/${PREFIX}/usr/sbin 
+	chown root.root ${IROOT}/${PREFIX}/usr/sbin/sbsrun
+	chmod 0755 ${IROOT}/${PREFIX}/usr/sbin/sbsrun
 # spool directory
 	-mkdir -p ${IROOT}/${QUEUE_DIR}
 	-mkdir -p ${IROOT}/${SBS_SPOOLDIR}

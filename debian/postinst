@@ -1,0 +1,22 @@
+#!/bin/sh -e
+
+if [ "$1" = "configure" ]; then
+    chown root:daemon /usr/bin/sbs
+    chmod 06755 /usr/bin/sbs
+    chown -R daemon:daemon /var/spool/sbs
+    chmod 1770 /var/spool/sbs/jobs /var/spool/sbs/spool 
+
+    if [ -z "$2" ]; then
+	update-rc.d atd defaults 89 11 > /dev/null
+    fi
+    if [ -f /etc/sbs/sbs.deny ] && ! dpkg-statoverride --list /etc/sbs/sbs.deny > /dev/null; then
+	chown root:daemon /etc/sbs/sbs.deny
+	chmod 0640 /etc/sbs/sbs.deny
+    fi
+    if [ -f /etc/sbs/sbs.allow ] && ! dpkg-statoverride --list /etc/sbs/sbs.allow > /dev/null; then
+	chown root:daemon /etc/sbs/sbs.allow
+	chmod 0640 /etc/sbs/sbs.allow
+    fi
+fi
+
+#invoke-rc.d atd start

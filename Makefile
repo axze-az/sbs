@@ -1,6 +1,6 @@
 # Simple Batch System
 
-IROOT=/tmp
+IROOT=${DESTDIR}
 
 # Directories
 PREFIX=/home/sbs
@@ -77,11 +77,11 @@ install: all
 	-chmod 01770 ${IROOT}/${SBS_JOBDIR}
 # etc sbs.deny
 	-mkdir -p ${IROOT}/${PERM_PATH}
-	touch ${IROOT}/${PERM_PATH}sbs.deny
-	-chown root.daemon ${IROOT}/${PERM_PATH}sbs.deny
-	-chmod 0420 ${IROOT}/${PERM_PATH}sbs.deny
+	touch ${IROOT}/${PERM_PATH}/sbs.deny
+	-chown root.daemon ${IROOT}/${PERM_PATH}/sbs.deny
+	-chmod 0420 ${IROOT}/${PERM_PATH}/sbs.deny
 # etc sbsrun crontab entry
-	-mkdir -p ${IROOT}/${PERM_PATH}cron.d
+	-mkdir -p ${IROOT}/${CRON_D_PATH}
 	install -m 0644 sbs.cron ${IROOT}/${CRON_D_PATH}/sbs
 
 distclean: clean

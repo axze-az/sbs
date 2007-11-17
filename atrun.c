@@ -411,12 +411,12 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 	    fprintf(stream, 
 		    "Ressource usage:\n"
 		    "%d.%02duser %d.%02dsystem %d:%02d.%02delapsed "
-		    "%.0f%%CPU\n",
+		    "%d%%CPU\n",
 		    user/100, user % 100, sys/100, sys/100, 
 		    elapsed/(100*60), 
 		    elapsed%(60*100)/100, 
 		    (elapsed%(60*100))%100,
-		    ((double)user + sys)/elapsed);
+		    (100*(user + sys))/elapsed);
 	    fclose(stream);
 	}
 	unlink(filename);

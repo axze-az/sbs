@@ -56,67 +56,67 @@ static int check_for_user(FILE *fp,const char *name);
 
 static int check_for_user(FILE *fp,const char *name)
 {
-    char *buffer;
-    size_t len;
-    int found = 0;
+	char *buffer;
+	size_t len;
+	int found = 0;
 
-    len = strlen(name);
-    if ((buffer = malloc(len+2)) == NULL)
-	errx(EXIT_FAILURE, "virtual memory exhausted");
+	len = strlen(name);
+	if ((buffer = malloc(len+2)) == NULL)
+		errx(EXIT_FAILURE, "virtual memory exhausted");
 
-    while(fgets(buffer, len+2, fp) != NULL)
-    {
-	if ((strncmp(name, buffer, len) == 0) &&
-	    (buffer[len] == '\n'))
+	while(fgets(buffer, len+2, fp) != NULL)
 	{
-	    found = 1;
-	    break;
+		if ((strncmp(name, buffer, len) == 0) &&
+		    (buffer[len] == '\n'))
+		{
+			found = 1;
+			break;
+		}
 	}
-    }
-    fclose(fp);
-    free(buffer);
-    return found;
+	fclose(fp);
+	free(buffer);
+	return found;
 }
 /* Global functions */
 int check_permission(void)
 {
-    FILE *fp;
-    uid_t uid = geteuid();
-    struct passwd *pentry;
+	FILE *fp;
+	uid_t uid = geteuid();
+	struct passwd *pentry;
 
-    if (uid==0)
-	return 1;
+	if (uid==0)
+		return 1;
 
-    if ((pentry = getpwuid(uid)) == NULL)
-	err(EXIT_FAILURE, "cannot access user database");
+	if ((pentry = getpwuid(uid)) == NULL)
+		err(EXIT_FAILURE, "cannot access user database");
 
-    PRIV_START
+	PRIV_START();
 
-    fp=fopen(PERM_PATH "sbs.allow","r");
+	fp=fopen(PERM_PATH "sbs.allow","r");
 
-    PRIV_END
-
-    if (fp != NULL)
-    {
-	return check_for_user(fp, pentry->pw_name);
-    }
-    else if (errno == ENOENT)
-    {
-
-	PRIV_START
-
-	fp=fopen(PERM_PATH "sbs.deny", "r");
-
-	PRIV_END
+	PRIV_END();
 
 	if (fp != NULL)
 	{
-	    return !check_for_user(fp, pentry->pw_name);
+		return check_for_user(fp, pentry->pw_name);
 	}
-	else if (errno != ENOENT)
-	    warn("sbs.deny");
-    }
-    else
-	warn("sbs.allow");
-    return 0;
+	else if (errno == ENOENT)
+	{
+		
+		PRIV_START();
+			
+		fp=fopen(PERM_PATH "sbs.deny", "r");
+		
+		PRIV_END();
+
+		if (fp != NULL)
+		{
+			return !check_for_user(fp, pentry->pw_name);
+		}
+		else if (errno != ENOENT)
+			warn("sbs.deny");
+	}
+	else
+		warn("sbs.allow");
+	return 0;
 }

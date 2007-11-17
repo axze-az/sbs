@@ -49,9 +49,9 @@ panic(const char *a)
 /* Something fatal has happened, print error message and exit.
  */
 	if (fcreated) {
-		PRIV_START
+		PRIV_START();
 		unlink(atfile);
-		PRIV_END
+		PRIV_END();
 	}
 
 	errx(EXIT_FAILURE, "%s", a);
@@ -65,9 +65,9 @@ perr(const char *a)
 	int serrno = errno;
 
 	if (fcreated) {
-		PRIV_START
+		PRIV_START();
 		unlink(atfile);
-		PRIV_END
+		PRIV_END();
 	}
 
 	errno = serrno;

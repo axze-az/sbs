@@ -47,15 +47,18 @@ extern int q_lock_file(const char* fname, int wait);
 extern int q_lock_active_file(int num);
 extern int q_lock_job_file(void);
 
-extern int q_queue_job(const char* jobname);
-extern int q_dequeue_job(const char* jobname);
-extern int q_cat_job(const char* jobname);
-extern int q_list_jobs(uid_t uid, gid_t gid);
-
-extern int q_change_job_status(const char* filename, 
+extern int q_job_status(const char* filename);
+extern int q_job_status_change(const char* filename, 
 			       int status);
+extern long q_job_next(void);
 
-extern long q_next_job();
+extern int q_job_queue (const char* basedir, const char* queue,
+			FILE* job, const char* workingdir, 
+			int force_mail);
+extern int q_job_dequeue(long jobid);
+extern int q_job_cat(const char* jobname);
+extern int q_job_list(uid_t uid, gid_t gid);
+
 
 extern pid_t q_exec(const char* basedir, 
 		    const char* qname, 

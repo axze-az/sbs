@@ -75,7 +75,7 @@ extern void init_privs(void);
 	setegid(real_gid); \
 } while (0)
 
-#define RELINQUISH_PRIVS_ROOT(a, b) { \
+#define RELINQUISH_PRIVS_ROOT(a, b) do { \
 	real_uid = (a); \
 	effective_uid = geteuid(); \
 	real_gid = (b); \

@@ -27,7 +27,6 @@ pid_t sbs_run(const char* basename, const char* queue,
 	DIR *spool;
 	struct dirent *dirent;
 	struct stat buf;
-	unsigned long ctm;
 	unsigned long jobno;
 	char batch_name[PATH_MAX];
 	uid_t batch_uid;
@@ -35,7 +34,6 @@ pid_t sbs_run(const char* basename, const char* queue,
 	unsigned long batch_jobno=(unsigned long)-1;
 	int batch_run = 0;
 	int lockfd;
-	char j;
 	pid_t pid;
 
 	/* We don't need root privileges all the time; running under
@@ -68,9 +66,9 @@ pid_t sbs_run(const char* basename, const char* queue,
 		 */
 		if (!S_ISREG(buf.st_mode)) 
 			continue;
-		if (sscanf(dirent->d_name,"%c%5lx%8lx",&j,&jobno,&ctm) != 3)
+		if (sscanf(dirent->d_name,"j%08ld",&jobno) != 1)
 			continue;
-		
+		fprintf(stdout, "%s\n" , dirent->d_name);
 		if (q_job_status (dirent->d_name) == SBS_JOB_QUEUED) {
 			batch_run = 1;
 			if ( jobno < batch_jobno ) {

@@ -17,6 +17,7 @@ MAIL=/usr/sbin/sendmail
 
 # No pam for now -DPAM=1
 DEFS= \
+-D_GNU_SOURCE=1 \
 -DMAIL_CMD=\"${MAIL}\" \
 -DPERM_PATH=\"${PERM_PATH}\" \
 -DSBS_QUEUE_DIR=\"${SBS_QUEUE_DIR}\" \
@@ -38,11 +39,11 @@ all: progs sbs.cron
 PROGS= sbsrun sbs
 progs: $(PROGS)
 
-SBSRUN_O=sbsd.o privs.o sbs.o
+SBSRUN_O=sbsd.o privs.o q.o
 sbsrun: $(SBSRUN_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBSRUN_O) 
 
-SBS_O=at.o perm.o panic.o privs.o sbs.o
+SBS_O=sbs.o q.o privs.o
 sbs: $(SBS_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
 

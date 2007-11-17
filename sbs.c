@@ -20,7 +20,7 @@ int sbs_queue_job(const char* basedir,
 int sbs_list_job(const char* basedir,
 		 const char* queue)
 {
-	// q_job_list(real_uid, real_gid);
+	q_job_list(basedir, queue, stdout);
 }
 
 int sbs_dequeue_job(const char* basedir,
@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 		sbs_cat_job(SBS_QUEUE_DIR, queue, jobno);
 	}
 	if (lj) {
-		sbs_list_job(SBS_QUEUE_DIR, queue);
+		sbs_list_job(SBS_QUEUE_DIR,queue);
 	}
 	return 0;
 }

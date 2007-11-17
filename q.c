@@ -1,6 +1,7 @@
 #include "sbs.h"
 #include "privs.h"
 
+#include <dirent.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -214,6 +215,57 @@ int q_job_status_change(const char* jobname, int status)
 		close(fd);
 	}
 	return fd;
+}
+
+int q_job_list(const char* basedir, const char* queue,
+	       FILE* out)
+{
+	int lockfd;
+	DIR* jobs=0;
+	struct dirent *dirent;
+	struct stat st;
+	struct passwd* pentry;
+	pentry = getpwuid(real_uid);
+	if (pentry == NULL)
+		exit_msg(SBS_EXIT_FAILED,
+			 "Userid %lu not found",
+			 (unsigned long) real_uid);
+	q_cd_job_dir (basedir, queue);
+	lockfd = q_lock_job_file();
+	if ( lockfd < 0 ) 
+		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
+			 "could not lock %s/%s/" 
+			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
+	PRIV_START();
+	jobs = opendir(".");
+	PRIV_END ();
+	close(lockfd);
+
+	if ( jobs == 0)
+		exit_msg(SBS_EXIT_FAILED,
+			 "could not read dir %s/%s/",
+			 basedir, queue);
+	
+	while ((dirent = readdir(jobs)) != NULL) {
+		long jobno;
+		int status;
+		if (stat(dirent->d_name,&st) != 0)
+			continue;
+		/* We don't want directories
+		 */
+		if (!S_ISREG(st.st_mode)) 
+			continue;
+		if (sscanf(dirent->d_name,"j%08ld",&jobno) != 1)
+			continue;
+		if ((real_uid !=0) && (st.st_uid != real_uid))
+			continue;
+		status=q_job_status (dirent->d_name);
+		fprintf(stdout, "%8ld\n %20s %10s %d", 
+			dirent->d_name,
+			pentry->pw_name,
+			status);
+	}
+	closedir(jobs);
 }
 
 int q_job_cat(const char* basedir, const char* queue,

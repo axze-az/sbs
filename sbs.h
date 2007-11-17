@@ -59,8 +59,8 @@ extern int q_job_queue (const char* basedir, const char* queue,
 extern int q_job_dequeue(const char* basedir, const char* queue, long jobid);
 extern int q_job_cat(const char* basedir, const char* queue,
 		     long jobid, FILE* out);
-extern int q_job_list(uid_t uid, gid_t gid);
-
+extern int q_job_list(const char* basedir, const char* queue,
+		      FILE* out);
 
 extern pid_t q_exec(const char* basedir, 
 		    const char* qname, 

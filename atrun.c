@@ -184,14 +184,14 @@ run_file(const char *filename, uid_t uid, gid_t gid,
     if ( fcntl (lockfd, F_SETFD, FD_CLOEXEC)< 0)
 	perr("close on exec on " ATJOB_DIR ".active failed");
 
-    PRIV_START
+    PRIV_START();
 
     if (chmod(filename, S_IRUSR) != 0)
     {
 	perrx("cannot change file permissions");
     }
 
-    PRIV_END
+    PRIV_END();
 
     syslog(LOG_INFO, "executing default/%ld from %s", jobno, filename); 
     /* Let's see who we mail to.  Hopefully, we can read it from
@@ -205,7 +205,7 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 		(unsigned long) uid, filename);
 
 #ifdef PAM
-    PRIV_START
+    PRIV_START();
 
     pam_err = pam_start(atrun, pentry->pw_name, &pamc, &pamh);
     if (pam_err != PAM_SUCCESS)
@@ -220,14 +220,14 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 
     pam_end(pamh, pam_err);
 
-    PRIV_END
+    PRIV_END();
 #endif /* PAM */
 
-    PRIV_START
+    PRIV_START();
 
     stream=fopen(filename, "r");
 
-    PRIV_END
+    PRIV_END();
 
     if (stream == NULL)
 	perr("cannot open input file");
@@ -340,7 +340,7 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 
 	queue = *filename;
 
-	PRIV_START
+	PRIV_START();
 
         nice(niceval);
 	
@@ -378,7 +378,7 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 	if(execle("/bin/sh","sh",(char *) NULL, nenvp) != 0)
 	    perr("exec failed for /bin/sh");
 
-	PRIV_END
+	PRIV_END();
     }
     /* We're the parent.  Let's wait.
      */
@@ -420,7 +420,7 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 	    fclose(stream);
 	}
 	unlink(filename);
-	PRIV_START
+	PRIV_START();
 
 #ifdef LOGIN_CAP
 	/*
@@ -456,7 +456,7 @@ run_file(const char *filename, uid_t uid, gid_t gid,
 #endif
 	    perr("exec failed for mail command");
 
-	PRIV_END
+	PRIV_END();
     }
     unlink(filename);
     exit(EXIT_SUCCESS);
@@ -534,7 +534,7 @@ main(int argc, char *argv[])
 /* We don't need root privileges all the time; running under uid and gid daemon
  * is fine.
  */
-    daemon_ids();
+    INIT_PRIVS();
     RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid)
 
     openlog(sbsd, LOG_PID, LOG_DAEMON);

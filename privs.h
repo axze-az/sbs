@@ -62,16 +62,18 @@
 extern uid_t real_uid, effective_uid, daemon_uid;
 extern gid_t real_gid, effective_gid, daemon_gid;
 
-extern void daemon_ids(void);
+extern void init_privs(void);
 
-#define RELINQUISH_PRIVS { \
+#define INIT_PRIVS() init_privs()
+
+#define RELINQUISH_PRIVS() do { \
 	real_uid = getuid(); \
 	effective_uid = geteuid(); \
 	real_gid = getgid(); \
 	effective_gid = getegid(); \
 	seteuid(real_uid); \
 	setegid(real_gid); \
-}
+} while (0)
 
 #define RELINQUISH_PRIVS_ROOT(a, b) { \
 	real_uid = (a); \
@@ -80,24 +82,27 @@ extern void daemon_ids(void);
 	effective_gid = getegid(); \
 	setegid(real_gid); \
 	seteuid(real_uid); \
-}
+} while (0)
 
-#define PRIV_START { \
+#define PRIV_START() \
+do { do {		\
 	seteuid(effective_uid); \
 	setegid(effective_gid); \
-}
+} while(0)
 
-#define PRIV_END { \
+#define PRIV_END() \
+do { \
 	setegid(real_gid); \
 	seteuid(real_uid); \
-}
+} while(0); } while (0)
 
-#define REDUCE_PRIV(a, b) { \
-	PRIV_START \
+#define REDUCE_PRIV(a, b) \
+do { \
+	PRIV_START();    \
 	effective_uid = (a); \
 	effective_gid = (b); \
 	setreuid((uid_t)-1, effective_uid); \
 	setregid((gid_t)-1, effective_gid); \
-	PRIV_END \
-}
+	PRIV_END();			    \
+} while(0)
 #endif

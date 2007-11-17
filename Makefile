@@ -4,9 +4,9 @@ IROOT=${DESTDIR}
 
 # Directories
 PREFIX=/home/sbs
-QUEUE_DIR=${PREFIX}/var/spool/sbs
-SBS_JOBDIR=${QUEUE_DIR}/jobs/
-SBS_SPOOLDIR=${QUEUE_DIR}/spool/
+SBS_QUEUE_DIR=${PREFIX}/var/spool/sbs
+SBS_JOBDIR=${SBS_QUEUE_DIR}/jobs/
+SBS_SPOOLDIR=${SBS_QUEUE_DIR}/spool/
 PIDFILE=${PREFIX}/var/run/sbsd.pid
 PERM_PATH=${PREFIX}/etc/sbs/
 CRON_D_PATH=${PREFIX}/etc/cron.d
@@ -19,6 +19,7 @@ MAIL=/usr/sbin/sendmail
 DEFS= \
 -DMAIL_CMD=\"${MAIL}\" \
 -DPERM_PATH=\"${PERM_PATH}\" \
+-DSBS_QUEUE_DIR=\"${SBS_QUEUE_DIR}\" \
 -DATJOB_DIR=\"${SBS_JOBDIR}\" \
 -DATSPOOL_DIR=\"${SBS_SPOOLDIR}\" \
 -DDAEMON_USERNAME=\"${DAEMON_USERNAME}\" \
@@ -37,11 +38,11 @@ all: progs sbs.cron
 PROGS= sbsrun sbs
 progs: $(PROGS)
 
-SBSRUN_O=atrun.o gloadavg.o privs.o
+SBSRUN_O=sbsd.o privs.o sbs.o
 sbsrun: $(SBSRUN_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBSRUN_O) 
 
-SBS_O=at.o perm.o panic.o privs.o
+SBS_O=at.o perm.o panic.o privs.o sbs.o
 sbs: $(SBS_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
 

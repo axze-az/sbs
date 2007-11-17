@@ -134,9 +134,9 @@ static void sigc(int signo __attribute__((unused)) )
  */
     if (fcreated)
     {
-	PRIV_START
+	    PRIV_START();
 	    unlink(atfile);
-	PRIV_END
+	    PRIV_END();
     }
 
     _exit(EXIT_FAILURE);
@@ -248,7 +248,7 @@ writefile(time_t runtimer, char queue)
      * we're alone when doing this.
      */
 
-    PRIV_START
+    PRIV_START();
 
     if ((lockdes = open(LFILE, O_WRONLY | O_CREAT, S_IWUSR | S_IRUSR)) < 0)
 	perr("cannot open lockfile " LFILE);
@@ -297,13 +297,13 @@ writefile(time_t runtimer, char queue)
     if(fchown(fd2, real_uid, real_gid) != 0)
 	perr("cannot give away file");
 
-    PRIV_END
+    PRIV_END();
 
     /* We no longer need suid root; now we just need to be able to write
      * to the directory, if necessary.
      */
 
-    REDUCE_PRIV(daemon_uid, daemon_gid)
+    REDUCE_PRIV(daemon_uid, daemon_gid);
 
     /* We've successfully created the file; let's set the flag so it 
      * gets removed in case of an interrupt or error.
@@ -483,7 +483,7 @@ list_jobs(long *joblist, int len)
 #endif
     /* fprintf(stderr, "uid: %d gid: %d\n", geteuid(), getegid()); */
 
-    PRIV_START
+    PRIV_START();
 
     /* fprintf(stderr, "uid: %d gid: %d\n", geteuid(), getegid()); */
 
@@ -534,7 +534,7 @@ list_jobs(long *joblist, int len)
 	       jobno,
 	       (S_IXUSR & buf.st_mode) ? "queued":"ACTIVE");
     }
-    PRIV_END
+    PRIV_END();
 }
 
 static void
@@ -551,7 +551,7 @@ process_jobs(int argc, char **argv, int what)
     long jobno;
 
 
-    PRIV_START
+    PRIV_START();
 
 
     if (chdir(ATJOB_DIR) != 0)
@@ -560,16 +560,16 @@ process_jobs(int argc, char **argv, int what)
     if ((spool = opendir(".")) == NULL)
 	perr("cannot open " ATJOB_DIR);
 
-    PRIV_END
+    PRIV_END();
 
     /*	Loop over every file in the directory 
      */
     while((dirent = readdir(spool)) != NULL) {
 
-	PRIV_START
+	    PRIV_START();
 	if (stat(dirent->d_name, &buf) != 0)
 	    perr("cannot stat in " ATJOB_DIR);
-	PRIV_END
+	PRIV_END();
 
 	if(sscanf(dirent->d_name, "%c%5lx%8lx", &queue, &jobno, &ctm)!=3)
 	    continue;
@@ -581,12 +581,12 @@ process_jobs(int argc, char **argv, int what)
 		switch (what) {
 		  case SBS_RM:
 
-		    PRIV_START
+			  PRIV_START();
 
 		    if (unlink(dirent->d_name) != 0)
 		        perr(dirent->d_name);
 
-		    PRIV_END
+		    PRIV_END();
 
 		    break;
 
@@ -595,11 +595,11 @@ process_jobs(int argc, char **argv, int what)
 			FILE *fp;
 			int ch;
 
-			PRIV_START
+			PRIV_START();
 
 			fp = fopen(dirent->d_name,"r");
 
-			PRIV_END
+			PRIV_END();
 
 			if (!fp) {
 			    perr("cannot open file");
@@ -660,9 +660,8 @@ main(int argc, char **argv)
     joblen = 0;
     timer = -1;
 
-    daemon_ids();
-
-    RELINQUISH_PRIVS
+    INIT_PRIVS();
+    RELINQUISH_PRIVS();
 
     /* Eat any leading paths
      */
@@ -721,7 +720,7 @@ main(int argc, char **argv)
     switch (program) {
     case SBS_LIST:
 
-	REDUCE_PRIV(daemon_uid, daemon_gid)
+	    REDUCE_PRIV(daemon_uid, daemon_gid);
 
         if (argc - optind > 0)
 	    joblist = get_job_list(argc - optind, argv + optind, &joblen);
@@ -730,14 +729,14 @@ main(int argc, char **argv)
 
     case SBS_RM:
 
-	REDUCE_PRIV(daemon_uid, daemon_gid)
+	    REDUCE_PRIV(daemon_uid, daemon_gid);
 
 	process_jobs(argc, argv, SBS_RM);
 	break;
 
     case SBS_CAT:
 
-	process_jobs(argc, argv, SBS_CAT);
+	    process_jobs(argc, argv, SBS_CAT);
 	break;
 
     case SBS_QUEUE:

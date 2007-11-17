@@ -49,7 +49,7 @@ sbs.cron: Makefile
 	echo "# /etc/cron.d/sbs crontab entry for the sbs package" >$@
 	echo "SHELL=/bin/sh" >>$@
 	echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >>$@
-	echo "0-59/2  *       *       *       *       root test -x ${IROOT}/usr/sbin/sbsrun && ${IROOT}/usr/sbin/sbsrun" >>$@
+	echo "0-59/2  *       *       *       *       root test -x ${PREFIX}/usr/sbin/sbsrun && ${PREFIX}/usr/sbin/sbsrun" >>$@
 
 clean:
 	-$(RM) *.o $(PROGS) sbs.cron

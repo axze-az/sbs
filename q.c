@@ -216,6 +216,70 @@ int q_job_status_change(const char* jobname, int status)
 	return fd;
 }
 
+int q_job_cat(const char* basedir, const char* queue,
+	      long jobno, FILE* out)
+{
+	int lockfd;
+	char filename[PATH_MAX];
+	FILE* f=0;
+	int c;
+	q_cd_job_dir (basedir, queue);
+	lockfd = q_lock_job_file();
+	if ( lockfd < 0 ) 
+		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
+			 "could not lock %s/%s/" 
+			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
+	snprintf(filename, sizeof(filename), "j%08ld", jobno);
+	PRIV_START();
+	seteuid(real_uid);
+	f = fopen(filename,"r");
+	PRIV_END ();
+	close(lockfd);
+	if (f == 0) 
+		exit_msg(SBS_EXIT_FAILED,
+			 "could not open %s/%ld %s",
+			 queue,jobno,strerror(errno));
+	while ( (c=fgetc(f)) != EOF ) {
+		fputc(c,out);
+	}
+	fclose(f);
+	return 0;
+}
+
+int q_job_dequeue(const char* basedir, const char* queue, long jobno)
+{
+	int lockfd;
+	char filename[PATH_MAX];
+	q_cd_job_dir (basedir, queue);
+	lockfd = q_lock_job_file();
+	if ( lockfd < 0 ) 
+		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
+			 "could not lock %s/%s/" 
+			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
+	snprintf(filename, sizeof(filename), "j%08ld", jobno);
+	if ( real_uid != 0) {
+		struct stat st;
+		PRIV_START();
+		if ( stat(filename,&st) < 0) 
+			exit_msg(SBS_EXIT_FAILED,
+				 "could not check %s/%ld %s",
+				 queue,jobno,strerror(errno));
+		PRIV_END();
+		if ( st.st_uid != real_uid)
+			exit_msg(SBS_EXIT_FAILED,
+				 "not owner %s/%ld",
+				 queue,jobno);
+	}
+	PRIV_START();
+	if ( unlink(filename) < 0) 
+		exit_msg(SBS_EXIT_FAILED,
+			 "could not remove %s/%ld %s",
+			 queue,jobno,strerror(errno));
+	PRIV_END();
+	close(lockfd);
+	return 0;
+}
+
 long q_job_next(void)
 {
     long jobno=EOF;

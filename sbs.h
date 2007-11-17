@@ -1,6 +1,7 @@
 #if !defined (__SBS_H__)
 #define __SBS_H__ 1
 
+#include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <grp.h>
@@ -55,8 +56,9 @@ extern long q_job_next(void);
 extern int q_job_queue (const char* basedir, const char* queue,
 			FILE* job, const char* workingdir, 
 			int force_mail);
-extern int q_job_dequeue(long jobid);
-extern int q_job_cat(const char* jobname);
+extern int q_job_dequeue(const char* basedir, const char* queue, long jobid);
+extern int q_job_cat(const char* basedir, const char* queue,
+		     long jobid, FILE* out);
 extern int q_job_list(uid_t uid, gid_t gid);
 
 

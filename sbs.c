@@ -15,31 +15,11 @@ int sbs_queue_job(const char* basedir,
 		  FILE* job, int force_mail)
 {
 	char wd[PATH_MAX];
-	pid_t daemon_pid=0;
 	getcwd(wd,sizeof(wd));
 	q_job_queue (basedir, queue,job,
 		     wd,0);
-	daemon_pid = q_read_pidfile (queue);
-	if ( daemon_pid > 0) {
-		/* execute sbs_notify */
-		pid_t pid=0;
-		char env0[256];
-		snprintf(env0,sizeof(env0),"SBS_DAEMON_PID=%i",daemon_pid);
-		pid = fork();
-		if ( pid < 0 ) {
-			exit_msg(3, "could not fork %s\n", strerror(errno));
-		} else if ( pid == 0)  {
-			char* envp[2];
-			envp[0]=env0;
-			envp[1]=NULL;
-			execle(SBIN_DIR "/sbsd_notify",
-			       SBIN_DIR "/sbsd_notify",
-			       "-q",queue,NULL, envp);
-			exit(4);
-		} else {
-			int status;
-			waitpid(pid,&status,0);
-		}
+	if (q_notify_daemon(basedir, queue)<0) {
+		exit_msg(3,"notify failed, daemon probably not running");
 	}
 }
 

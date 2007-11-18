@@ -15,7 +15,7 @@ static
 void sbs_create(const char* basename, const char* queue)
 {
 	if (q_create(basename, queue)==0) 
-		fprintf(stdout, "created queue %s at %s\n", queue, basename);
+		info_msg("created queue %s at %s", queue, basename);
 }
 
 static
@@ -198,7 +198,7 @@ int sbs_daemon(const char* basename, const char* queue,
 	       int debug)
 {
 	char buf[256];
-	int lockfd;
+	int lockfd,sfd;
 	sigset_t sigm;
 	struct sigaction sa;
 	pid_t* pids;
@@ -225,8 +225,14 @@ int sbs_daemon(const char* basename, const char* queue,
 	memset(&sa,0,sizeof(sa));
 	sigfillset(&sa.sa_mask);
 	sa.sa_sigaction = dummy_sighdlr;
-	if ( sigaction(SIGCHLD, &sa,NULL) < 0)
-		exit_msg(EXIT_FAILURE, "could set signal handler\n");
+	sa.sa_flags = SA_SIGINFO;
+	if ( (sigaction(SIGCHLD, &sa,NULL) < 0) ||
+	     (sigaction(SIGIO, &sa,NULL) < 0) ||
+	     (sigaction(SIGURG, &sa,NULL) < 0))
+		exit_msg(EXIT_FAILURE, "could not set signal handlers");
+	if ( (sfd=q_notify_init(basename,queue)) <0 )
+		exit_msg(EXIT_FAILURE, "q_notify_init failed");
+
 	info_msg("processing jobs between %02u:%02u and %02u:%02u",
 		 wtimes->_start_hour, wtimes->_start_min,
 		 wtimes->_end_hour, wtimes->_end_min);
@@ -246,10 +252,10 @@ int sbs_daemon(const char* basename, const char* queue,
 		if ( iret < 0 )
 			continue;
 		/* handle signals */
-		if (sinfo.si_signo == SIGALRM)  {
-#if 0
-			info_msg("SIGALRM");
-#endif
+		if ( (sinfo.si_signo == SIGIO) || 
+		     (sinfo.si_signo == SIGURG))  {
+			q_notify_handle(sfd);
+			/* info_msg("SIGIO/SIGURG"); */
 			continue; /* wakeup from sbsd_notify */
 		} else if (sinfo.si_signo == SIGCHLD) {
 			handle_childs(pids, workernum);

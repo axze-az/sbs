@@ -36,7 +36,7 @@ ARFLAGS=rv
 
 all: progs 
 
-PROGS= sbsd sbs sbsd_notify
+PROGS= sbsd sbs
 SCRIPTS= sbs-clear-queue
 progs: $(PROGS) $(SCRIPTS)
 
@@ -48,10 +48,6 @@ SBS_O=sbs.o q.o privs.o
 sbs: $(SBS_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
 
-SBS_NOTIFY_O=sbsd_notify.o privs.o q.o
-sbsd_notify: $(SBS_NOTIFY_O)
-	$(LD) $(LDFLAGS) -o $@ $(SBS_NOTIFY_O)
-
 clean:
 	-$(RM) *.o $(PROGS) sbs.cron
 
@@ -61,11 +57,9 @@ install: all
 	install -m 06755 -g ${DAEMON_GROUPNAME} -o ${DAEMON_USERNAME} \
  sbs ${IROOT}/${BIN_DIR}
 	install sbs-clear-queue ${IROOT}/${BIN_DIR}
-# sbsd / sbsd_notify
+# sbsd
 	mkdir -p ${IROOT}/${SBIN_DIR}
 	install -m 0755 -g root -o root sbsd ${IROOT}/${SBIN_DIR}
-	mkdir -p ${IROOT}/${SBIN_DIR}
-	install -m 04755 -g root -o root sbsd_notify ${IROOT}/${SBIN_DIR}
 # spool directory
 	mkdir -p ${IROOT}/${SBS_QUEUE_DIR}
 	chown daemon.daemon ${IROOT}/${SBS_QUEUE_DIR}

@@ -1,6 +1,10 @@
 #include "sbs.h"
 #include "privs.h"
 
+#include <sys/socket.h> /* basic socket definitions */
+#include <sys/types.h> /* basic system data types */
+#include <sys/un.h> /* for Unix domain sockets */
+#include <poll.h>
 #include <signal.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -90,6 +94,83 @@ int q_cd_dir(const char* basename, const char* qname)
 			 basename, qname);
 	return 0;
 }
+
+int q_notify_un(const char* basename, const char* qname,
+		struct sockaddr_un* addr)
+{
+	/* Socket type is local (Unix Domain). */
+	memset(addr,0, sizeof(*addr));
+	addr->sun_family = AF_LOCAL; 
+	if ( snprintf(addr->sun_path, sizeof(addr->sun_path),
+		      "%s/%s/.n",basename, qname) >=
+	     sizeof(addr->sun_path)) {
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+int q_notify_init(const char* basename, const char* qname)
+{
+	struct sockaddr_un addr;
+	int sfd;
+	long flag;
+	int msk;
+	if ( (sfd=q_notify_un(basename, qname, &addr)) <0)
+		return sfd;
+	msk=umask(~(S_IRUSR|S_IWUSR|S_IXUSR));
+	unlink(addr.sun_path);
+	sfd=socket( AF_LOCAL, SOCK_STREAM, 0 );
+	if (sfd < 0)
+		return -errno;
+	bind(sfd, (struct sockaddr* )&addr,sizeof(addr));
+	fcntl (sfd, F_SETFD, FD_CLOEXEC);
+	fcntl (sfd, F_SETOWN, getpid());
+	flag=fcntl (sfd, F_GETFL, flag);
+	fcntl (sfd, F_SETFL, flag | O_NONBLOCK | O_ASYNC);
+	listen( sfd, 10);
+	umask(msk);
+	return sfd;
+}
+
+int q_notify_handle(int sockfd)
+{
+	struct pollfd pfd;
+	/* do poll */
+	memset(&pfd,0,sizeof(pfd));
+	pfd.fd = sockfd;
+	pfd.events = POLLIN;
+	while ( (poll(&pfd,1,0) > 0) && (pfd.revents !=0)) {
+		struct sockaddr_un peer;
+		socklen_t slen;
+		slen = sizeof(peer);
+		memset(&peer,0,sizeof(peer));
+		int afd= accept(sockfd,(struct sockaddr*)&peer,&slen);
+		if ( afd >=0)
+			close(afd);
+		pfd.fd = sockfd;
+		pfd.events = POLLIN;
+		/* info_msg("poll"); */
+	}
+	return 0;
+}
+
+int q_notify_daemon( const char* basename, const char* qname)
+{
+	struct sockaddr_un addr;
+	int sfd,r=0;
+	if ( (sfd=q_notify_un(basename, qname, &addr)) <0)
+		return sfd;
+	sfd = socket( AF_LOCAL, SOCK_STREAM, 0 );
+	if ( sfd <0)
+		return -errno;
+	PRIV_START();
+	if (connect(sfd, (struct sockaddr *) &addr, sizeof(addr))<0) 
+		r= -errno;
+	PRIV_END();
+	close(sfd);
+	return r;
+}
+
 
 int q_cd_job_dir (const char* basename, const char* qname)
 {

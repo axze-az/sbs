@@ -33,9 +33,8 @@ int main(int argc, char** argv)
 	if ( daemon_pid == 0)
 		return 6;
 	PRIV_START();
-	if ( kill(daemon_pid,SIGALRM) <0 ) {
-		warn_msg("could not kill %s\n", strerror(errno));
-	}
+	if (kill(daemon_pid, 0) ==0)
+		kill(daemon_pid,SIGALRM);
 	PRIV_END();
 	return 0;
 }

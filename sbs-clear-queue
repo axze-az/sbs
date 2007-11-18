@@ -1,5 +1,7 @@
 #! /bin/sh
 
+PATH=$PATH:`dirname $0` 
+
 usage()
 {
     echo $0 -q queuename

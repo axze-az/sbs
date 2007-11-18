@@ -4,9 +4,9 @@ IROOT=${DESTDIR}
 
 # Directories
 PREFIX=/home/sbs
+BIN_DIR=${PREFIX}/usr/bin
+SBIN_DIR=${PREFIX}/usr/sbin
 SBS_QUEUE_DIR=${PREFIX}/var/spool/sbs
-SBS_JOBDIR=${SBS_QUEUE_DIR}/jobs/
-SBS_SPOOLDIR=${SBS_QUEUE_DIR}/spool/
 PIDFILE=${PREFIX}/var/run/sbsd.pid
 PERM_PATH=${PREFIX}/etc/sbs/
 CRON_D_PATH=${PREFIX}/etc/cron.d
@@ -21,8 +21,6 @@ DEFS= \
 -DMAIL_CMD=\"${MAIL}\" \
 -DPERM_PATH=\"${PERM_PATH}\" \
 -DSBS_QUEUE_DIR=\"${SBS_QUEUE_DIR}\" \
--DATJOB_DIR=\"${SBS_JOBDIR}\" \
--DATSPOOL_DIR=\"${SBS_SPOOLDIR}\" \
 -DDAEMON_USERNAME=\"${DAEMON_USERNAME}\" \
 -DDAEMON_GROUPNAME=\"${DAEMON_GROUPNAME}\" 
 
@@ -36,7 +34,7 @@ ARFLAGS=rv
 
 all: progs sbs.cron
 
-PROGS= sbsrun sbs
+PROGS= sbsrun sbs sbs-clear-queue
 progs: $(PROGS)
 
 SBSRUN_O=sbsd.o privs.o q.o
@@ -57,34 +55,25 @@ clean:
 	-$(RM) *.o $(PROGS) sbs.cron
 
 install: all 
-	-mkdir ${IROOT}
-# sbs
-	-mkdir -p ${IROOT}/${PREFIX}/usr/bin
-	install -m 0755 sbs ${IROOT}/${PREFIX}/usr/bin 
-	chown root.root ${IROOT}/${PREFIX}/usr/bin/sbs
-	chmod 4755 ${IROOT}/${PREFIX}/usr/bin/sbs
-# sbsrun
-	-mkdir ${IROOT}/${PREFIX}/usr/sbin
-	install -m 0755 sbsrun ${IROOT}/${PREFIX}/usr/sbin 
-	chown root.root ${IROOT}/${PREFIX}/usr/sbin/sbsrun
-	chmod 0755 ${IROOT}/${PREFIX}/usr/sbin/sbsrun
+	mkdir -p ${IROOT}/${BIN_DIR}
+# sbs + sbs-clear-queue
+	install -m 06755 -g ${DAEMON_GROUPNAME} -o ${DAEMON_USERNAME} \
+sbs ${IROOT}/${BIN_DIR}
+	install sbs-clear-queue ${IROOT}/${BIN_DIR}
+# sbsrun / sbsd
+	mkdir -p ${IROOT}/${SBIN_DIR}
+	install -m 0755 -g root -o root sbsrun ${IROOT}/${SBIN_DIR}
 # spool directory
-	-mkdir -p ${IROOT}/${QUEUE_DIR}
-	-mkdir -p ${IROOT}/${SBS_SPOOLDIR}
-	-mkdir -p ${IROOT}/${SBS_JOBDIR}
-	-chown daemon.daemon ${IROOT}/${QUEUE_DIR}
-	-chown daemon.daemon ${IROOT}/${SBS_SPOOLDIR}
-	-chown daemon.daemon ${IROOT}/${SBS_JOBDIR}
-	-chmod 01770 ${IROOT}/${SBS_SPOOLDIR}
-	-chmod 01770 ${IROOT}/${SBS_JOBDIR}
+	mkdir -p ${IROOT}/${SBS_QUEUE_DIR}
+	chown daemon.daemon ${IROOT}/${SBS_QUEUE_DIR}
 # etc sbs.deny
-	-mkdir -p ${IROOT}/${PERM_PATH}
+	mkdir -p ${IROOT}/${PERM_PATH}
 	touch ${IROOT}/${PERM_PATH}/sbs.deny
-	-chown root.daemon ${IROOT}/${PERM_PATH}/sbs.deny
-	-chmod 0420 ${IROOT}/${PERM_PATH}/sbs.deny
+	chown root.daemon ${IROOT}/${PERM_PATH}/sbs.deny
+	chmod 0640 ${IROOT}/${PERM_PATH}/sbs.deny
 # etc sbsrun crontab entry
-	-mkdir -p ${IROOT}/${CRON_D_PATH}
-	install -m 0644 sbs.cron ${IROOT}/${CRON_D_PATH}/sbs
+	mkdir -p ${IROOT}/${CRON_D_PATH}
+	install -m 0640 -g daemon -o root sbs.cron ${IROOT}/${CRON_D_PATH}/sbs
 
 distclean: clean
 	-$(RM) *~

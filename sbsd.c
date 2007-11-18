@@ -9,17 +9,14 @@
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <signal.h>
 
 static
 void sbs_create(const char* basename, const char* queue)
 {
-	INIT_PRIVS();
-	RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid);
 	if (q_create(basename, queue)==0) 
 		fprintf(stdout, "created queue %s at %s\n", queue, basename);
 }
-
 
 static
 int sbs_run(const char* basename, const char* queue, 
@@ -33,11 +30,7 @@ int sbs_run(const char* basename, const char* queue,
 	int jobs;
 	unsigned long min_jobno=0;
 
-	daemonized=1;
-	openlog("sbsd", LOG_PID, LOG_DAEMON);
-
 	q_cd_job_dir (basename, queue);
-
 	if ( (lockfd=q_lock_job_file ()) < 0) {
 		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
 			 "could not lock job file in %s/%s",
@@ -96,8 +89,179 @@ int sbs_run(const char* basename, const char* queue,
 		}
 	}
 	close(lockfd);
-	closelog();
 	return jobs;
+}
+
+struct work_times {
+	int _start_hour;
+	int _start_min;
+	int _end_hour;
+	int _end_min;
+};
+
+
+static 
+int check_work_times(const struct work_times* w)
+{
+	struct tm tm;
+	struct timeval tv;
+	time_t t;
+	int val=1;
+
+	int ta,tb,tc;
+
+	gettimeofday(&tv,0);
+	t = (time_t)tv.tv_sec;
+	localtime_r(&t,&tm);
+
+	ta = w->_start_hour*100 + w->_start_min;
+	tb =w->_end_hour*100 + w->_end_min;
+		
+	tc = tm.tm_hour*100 + tm.tm_min;
+	
+	if ( ta > tb ) {
+		/* runs over night */
+		if ((ta <= tc) || (tc<=tb))
+			val =0;
+	} else {
+		/* daily runs */
+		if ((ta <= tc) && (tc<=tb)) 
+			val =0;
+	}
+#if 0
+	info_msg("ta=%u tc=%u tb=%u val=%i", ta, tc, tb,val); 
+	info_msg("uid=%i gid=%i", geteuid(), getegid());
+#endif
+	return val;
+} 
+
+static
+int parse_work_times(const char* buffer, struct work_times* w)
+{
+	if ( sscanf(buffer,"%u:%02u-%u:%02u", 
+		    &w->_start_hour, &w->_start_min,
+		    &w->_end_hour, &w->_end_min) != 4)  
+		return 1;
+	/* check times */
+	if (w->_start_min < 0 || w->_start_min > 59) 
+		return 1;
+	if (w->_start_hour < 0 || w->_start_hour > 24) 
+		return 1;
+	if (w->_start_hour ==24 && w->_start_min > 0)
+		return 1;
+
+	if (w->_end_min < 0 ||  w->_end_min > 59)
+		return 1;
+	if (w->_end_hour < 0 ||  w->_end_hour > 24)
+		return 1;
+	if (w->_end_hour ==24 && w->_end_min > 0)
+		return 1;
+
+	if ( (w->_end_hour * 60)  +  w->_end_min ==
+	     (w->_start_hour *60) + w->_start_min) 
+		return 2; /* no range */
+	return 0;
+}
+
+static
+void handle_childs(pid_t* pids, int n)
+{
+	pid_t p;
+	int status;
+	while ( (p=waitpid(-1, &status, WNOHANG))>0) {
+		if ( WIFEXITED(status) || WIFSIGNALED(status)) {
+			int i;
+			info_msg("child %i terminated", p);
+			for (i=0;i<n;++i) {
+				/* clean entry */
+				if (pids[i]=p) {
+					pids[i]=0;
+					break;
+				}
+			}
+			if ( i == n )
+				info_msg("spurios child %i terminated", p);
+		}
+	} 
+}
+
+static
+void dummy_sighdlr(int sig, siginfo_t* sa, void* ctx)
+{
+}
+
+static
+int sbs_daemon(const char* basename, const char* queue, 
+	       int nicelvl, int workernum, 
+	       const struct work_times* wtimes,
+	       int timeout, 
+	       int debug)
+{
+	char buf[256];
+	int lockfd;
+	sigset_t sigm;
+	struct sigaction sa;
+	pid_t* pids;
+
+	daemonized=1;
+
+	snprintf(buf,sizeof(buf), "sbsd-%s", queue);
+	openlog(buf, LOG_PID | (debug ? LOG_PERROR :0), LOG_DAEMON);
+
+	sigfillset(&sigm);
+	sigprocmask(SIG_SETMASK,&sigm,NULL);
+
+	pids = calloc(sizeof(pid_t),workernum);
+	if ( pids == 0)
+		exit_msg(EXIT_FAILURE, "out of memory");
+	if ( debug == 0)
+		if (daemon(0,0) < 0) 
+			exit_msg(EXIT_FAILURE, "daemon function failed");
+	if ( lockfd=q_write_pidfile (queue) < 0 ) 
+		exit_msg(EXIT_FAILURE, "could not write pid file\n");
+	RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid);
+	
+	/* set dummy sigchld handler for SIG_CHLD that we get signals. */
+	memset(&sa,0,sizeof(sa));
+	sigfillset(&sa.sa_mask);
+	sa.sa_sigaction = dummy_sighdlr;
+	if ( sigaction(SIGCHLD, &sa,NULL) < 0)
+		exit_msg(EXIT_FAILURE, "could set signal handler\n");
+	info_msg("processing jobs between %02u:%02u and %02u:%02u",
+		 wtimes->_start_hour, wtimes->_start_min,
+		 wtimes->_end_hour, wtimes->_end_min);
+	info_msg("using %i workers at nice %i with a timeout of %u seconds",
+		 workernum, nicelvl,timeout);
+	/* start the main loop */
+	while (1) {
+		struct timespec t;
+		struct siginfo sinfo;
+		int iret;
+		t.tv_sec= timeout;
+		t.tv_nsec =0;
+		if ( check_work_times(wtimes) == 0)
+			sbs_run(basename, queue, nicelvl, 
+				pids,workernum);
+		iret = sigtimedwait(&sigm,&sinfo,&t);
+		if ( iret < 0 )
+			continue;
+		/* handle signals */
+		if (sinfo.si_signo == SIGALRM)  {
+#if 0
+			info_msg("SIGALRM");
+#endif
+			continue; /* wakeup from sbsd_notify */
+		} else if (sinfo.si_signo == SIGCHLD) {
+			handle_childs(pids, workernum);
+			continue;
+		} else if ((sinfo.si_signo == SIGTERM) ||
+			   (sinfo.si_signo == SIGQUIT) ||
+			   (sinfo.si_signo == SIGINT)) {
+			break; /* terminate daemon */
+		}
+	} 
+	info_msg("terminating");
+	return 0;
 }
 
 static void usage(void)
@@ -129,10 +293,31 @@ int main(int argc, char** argv)
 	int timeout=120;
 	int workers=1;
 	int debug=0;
+	struct work_times wtimes;
 	INIT_PRIVS();
 
-	while ((c=getopt(argc, argv, "q:t:w:n:drce")) != -1) {
+	memset(&wtimes,0,sizeof(wtimes));
+	wtimes._start_hour=0;
+	wtimes._end_hour=24;
+	wtimes._start_min=0;
+	wtimes._end_min=0;
+
+	while ((c=getopt(argc, argv, "a:q:t:w:n:drce")) != -1) {
 		switch (c) {
+		case 'a':
+			switch( parse_work_times (optarg,&wtimes)) {
+			case 1:
+				warn_msg("invalid time range was given");
+				usage();		
+				break;
+			case 2:
+				warn_msg("no time range was given");
+				usage();
+				break;
+			default:
+				break;
+			}
+			break;
 		case 'q':    /* specify queue */
 			queue = optarg;
 			break;
@@ -178,9 +363,13 @@ int main(int argc, char** argv)
 		RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid);
 		if ( queue == 0)
 			usage();
+		daemonized=1;
+		openlog("sbsd", LOG_PID, LOG_DAEMON);
 		ws = alloca(workers*sizeof(pid_t));
 		memset(ws,0,workers*sizeof(pid_t));
 		sbs_run(SBS_QUEUE_DIR, queue, nicelvl,ws,workers);
+		closelog();
+		return 0;
 	}
 	/* create a queue */
 	if ( dcreat ) {
@@ -188,15 +377,19 @@ int main(int argc, char** argv)
 		if ( queue == 0)
 			usage();
 		sbs_create(SBS_QUEUE_DIR, queue);
+		return 0;
 	}
 	/* erase a queue */
 	if ( derase ) {
 		RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid);
 		if ( queue == 0)
 			usage();
-		fprintf(stderr, "delete the queue directory by hand\n");
+		fprintf(stderr, 
+			"please delete the queue directory by hand\n");
 		exit(3);
 	}
 	/* otherwise run the daemon */
+	sbs_daemon(SBS_QUEUE_DIR, queue, nicelvl, workers, 
+		   &wtimes,timeout,debug);
 	return 0;
 }

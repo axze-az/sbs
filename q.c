@@ -1,6 +1,7 @@
 #include "sbs.h"
 #include "privs.h"
 
+#include <signal.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -159,6 +160,63 @@ int q_create(const char* basename, const char* qname)
 	umask(um);
 	PRIV_END();
 	return 0;
+}
+
+pid_t q_read_pidfile(const char* qname)
+{
+	char f[PATH_MAX];
+	FILE* fp;
+	pid_t ret=0;
+	snprintf(f,sizeof(f), RUN_DIR "/sbsd-%s.pid", qname);
+	fp = fopen(f,"r");
+	if ( fp ) {
+		long pid;
+		if (fscanf(fp, "%ld", &pid)==1) {
+			ret = (pid_t)pid;
+		}
+		fclose(fp);
+	}
+	return ret;
+}
+
+int q_write_pidfile(const char* qname)
+{
+	char fname[PATH_MAX];
+	mode_t m;
+	int lockfd;
+	struct flock lck;
+	snprintf(fname,sizeof(fname), RUN_DIR "/sbsd-%s.pid", qname);
+	PRIV_START();
+	m = umask(0);
+	lockfd=open(fname, O_RDWR | O_CREAT,
+		    S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	if ( lockfd > -1 ) {
+		lck.l_type = F_WRLCK;
+		lck.l_whence = SEEK_SET;
+		lck.l_start = 0;
+		lck.l_len = 0;
+		if ((fcntl(lockfd, F_SETLK, &lck)<0) ||
+		    (fcntl (lockfd, F_SETFD, FD_CLOEXEC)< 0)) {
+			int t=-errno;
+			close(lockfd);
+			lockfd=t;
+		} else {
+			char pidbuf[64];
+			size_t s=snprintf(pidbuf,sizeof(pidbuf),
+					  "%ld\n", getpid());
+			if ( (s >= sizeof(pidbuf)) ||
+			     (write(lockfd,pidbuf,s) != s)) {
+				int t=-errno;
+				close(lockfd);
+				lockfd=t;
+			}
+		}
+	} else {
+		lockfd = -errno;
+	}
+	umask(m);
+	PRIV_END();
+	return lockfd;
 }
 
 int q_lock_file(const char* fname, int wait)
@@ -635,6 +693,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 	struct timeval starttime,endtime;
 	int lockfd;
 	char subject[256];
+	sigset_t msk;
 #ifdef PAM
 	pam_handle_t *pamh = NULL;
 	int pam_err;
@@ -650,6 +709,12 @@ pid_t q_exec(const char* basedir, const char* queue,
 			exit_msg(4,"cannot fork");
 		return pid;
 	}
+	
+	/* change the signal mask, so one can terminate us */
+	sigfillset(&msk);
+	sigdelset(&msk,SIGTERM);
+	sigdelset(&msk,SIGQUIT);
+	sigprocmask(SIG_SETMASK,&msk,0);
 
 	q_cd_job_dir(basedir, queue);
 	lockfd=q_lock_active_file (workernum);

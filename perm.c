@@ -38,7 +38,7 @@
 
 /* Local headers */
 
-#include "at.h"
+#include "sbs.h"
 #include "perm.h"
 #include "privs.h"
 
@@ -62,7 +62,7 @@ static int check_for_user(FILE *fp,const char *name)
 
 	len = strlen(name);
 	if ((buffer = malloc(len+2)) == NULL)
-		errx(EXIT_FAILURE, "virtual memory exhausted");
+		exit_msg(SBS_EXIT_PRIVS_FAILED, "virtual memory exhausted");
 
 	while(fgets(buffer, len+2, fp) != NULL)
 	{
@@ -88,7 +88,7 @@ int check_permission(void)
 		return 1;
 
 	if ((pentry = getpwuid(uid)) == NULL)
-		err(EXIT_FAILURE, "cannot access user database");
+		exit_msg(SBS_EXIT_PRIVS_FAILED, "cannot access user database");
 
 	PRIV_START();
 
@@ -114,9 +114,9 @@ int check_permission(void)
 			return !check_for_user(fp, pentry->pw_name);
 		}
 		else if (errno != ENOENT)
-			warn("sbs.deny");
+			warn_msg("sbs.deny");
 	}
 	else
-		warn("sbs.allow");
+		warn_msg("sbs.allow");
 	return 0;
 }

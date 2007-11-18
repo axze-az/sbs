@@ -30,7 +30,7 @@ DEFS= \
 CC=gcc
 CXX=g++
 LD=$(CC)
-CFLAGS=-g $(DEFS) -I. -Wunused -ffunction-sections -fdata-sections
+CFLAGS=-g $(DEFS) -I. -Wunused -ffunction-sections -fdata-sections -Wall
 LDFLAGS=-g -L.
 ARFLAGS=rv
 

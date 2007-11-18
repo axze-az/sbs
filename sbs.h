@@ -44,6 +44,15 @@ extern int q_cd_dir(const char* basedir, const char* qname);
 extern int q_cd_job_dir(const char* basedir, const char* qname);
 extern int q_cd_spool_dir(const char* basedir, const char* qname);
 
+extern int q_notify_init(const char* basename, const char* qname);
+extern int q_notify_handle(int sockfd);
+extern int q_notify_daemon(const char* basename, const char* qname);
+
+extern int q_create(const char* basename, const char* qname);
+
+extern pid_t q_read_pidfile(const char* qname);
+extern int q_write_pidfile(const char* qname);
+
 extern int q_lock_file(const char* fname, int wait);
 extern int q_lock_active_file(int num);
 extern int q_lock_job_file(void);

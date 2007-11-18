@@ -21,12 +21,14 @@ int sbs_queue_job(const char* basedir,
 	if (q_notify_daemon(basedir, queue)<0) {
 		exit_msg(3,"notify failed, daemon probably not running");
 	}
+	return 0;
 }
 
 int sbs_list_job(const char* basedir,
 		 const char* queue)
 {
 	q_job_list(basedir, queue, stdout);
+	return 0;
 }
 
 int sbs_dequeue_job(const char* basedir,

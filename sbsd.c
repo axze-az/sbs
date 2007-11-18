@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <time.h>
+#include <sys/time.h>
+#include <wait.h>
 
 static
 void sbs_create(const char* basename, const char* queue)
@@ -174,7 +177,7 @@ void handle_childs(pid_t* pids, int n)
 			info_msg("child %i terminated", p);
 			for (i=0;i<n;++i) {
 				/* clean entry */
-				if (pids[i]=p) {
+				if (pids[i]==p) {
 					pids[i]=0;
 					break;
 				}
@@ -217,7 +220,7 @@ int sbs_daemon(const char* basename, const char* queue,
 	if ( debug == 0)
 		if (daemon(0,0) < 0) 
 			exit_msg(EXIT_FAILURE, "daemon function failed");
-	if ( lockfd=q_write_pidfile (queue) < 0 ) 
+	if ( (lockfd=q_write_pidfile (queue)) < 0 ) 
 		exit_msg(EXIT_FAILURE, "could not write pid file\n");
 	RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid);
 	

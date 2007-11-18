@@ -20,6 +20,8 @@
 #include <sys/stat.h>
 #include <utmp.h>
 #include <sys/resource.h>
+#include <ctype.h>
+#include <wait.h>
 
 #if !defined (LOGNAMESIZE)
 #define LOGNAMESIZE UT_NAMESIZE+2
@@ -181,6 +183,7 @@ int q_cd_job_dir (const char* basename, const char* qname)
 			 "Could not switch to %s/%s/" SBS_QUEUE_JOB_DIR, 
 			 basename, qname);
 	PRIV_END();
+	return 0;
 }
 
 int q_cd_spool_dir (const char* basename, const char* qname)
@@ -192,6 +195,7 @@ int q_cd_spool_dir (const char* basename, const char* qname)
 			 "Could not switch to %s/%s/" SBS_QUEUE_SPOOL_DIR, 
 			 basename, qname);
 	PRIV_END();
+	return 0;
 }
 
 int q_create(const char* basename, const char* qname)
@@ -284,7 +288,7 @@ int q_write_pidfile(const char* qname)
 		} else {
 			char pidbuf[64];
 			size_t s=snprintf(pidbuf,sizeof(pidbuf),
-					  "%ld\n", getpid());
+					  "%ld\n", (long)getpid());
 			if ( (s >= sizeof(pidbuf)) ||
 			     (write(lockfd,pidbuf,s) != s)) {
 				int t=-errno;
@@ -494,6 +498,7 @@ int q_job_list(const char* basedir, const char* queue,
 	}
 	closedir(jobs);
 	fprintf(out, "# jobs: %i\n", jbcnt);
+	return 0;
 }
 
 int q_job_cat(const char* basedir, const char* queue,
@@ -1006,8 +1011,9 @@ pid_t q_exec(const char* basedir, const char* queue,
 			cpu = elapsed ? (100*(user + sys))/elapsed : 0;
 			fprintf(stream, 
 				"Ressource usage:\n"
-				"%d.%02duser %d.%02dsystem %d:%02d.%02delapsed "
-				"%d%%CPU\n",
+				"%ld.%02lduser %ld.%02ldsystem "
+				"%ld:%02ld.%02ldelapsed "
+				"%ld%%CPU\n",
 				user/100, user % 100, sys/100, sys/100, 
 				elapsed/(100*60), 
 				elapsed%(60*100)/100, 

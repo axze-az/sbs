@@ -42,11 +42,11 @@ usage(void)
 {
 	/* Print usage and exit. */
     fprintf(stderr, 
-	    "usage: sbs [-q queue] [-f file] [-m]\n"
-	    "       sbs [-q queue] -c job [job ...]\n"
-	    "       sbs [-q queue] -d job [job ...]\n"
-	    "       sbs [-q queue] -l\n"
-	    "       sbs [-q queue]\n");
+	    "usage: sbs -q queue [-f file] [-m]\n"
+	    "       sbs -q queue -c job [job ...]\n"
+	    "       sbs -q queue -d job [job ...]\n"
+	    "       sbs -q queue -l\n"
+	    "       sbs -q queue\n");
     exit(EXIT_FAILURE);
 }
 
@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 {
 	int force_mail=0;
 	const char* jobfile =0;
-	const char* queue=".";
+	const char* queue=0;
 	int jobno;
 	int qj=0, dj=0, lj=0, cj=0;
 	int c;
@@ -91,6 +91,8 @@ int main(int argc, char** argv)
 			break;
 		}
 	}
+	if (queue == 0)
+		usage();
 	switch (dj +lj +cj) {
 	case 0:
 		qj=1;

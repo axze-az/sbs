@@ -23,6 +23,8 @@
 #define MAXLOGNAME LOGNAMESIZE
 #endif
 
+#define SBS_JOB_FILE_MASK "j%05lx"
+
 int daemonized;
 
 int msg_va(int prio, const char* fmt, va_list va)
@@ -110,11 +112,63 @@ int q_cd_spool_dir (const char* basename, const char* qname)
 	PRIV_END();
 }
 
+int q_create(const char* basename, const char* qname)
+{
+	mode_t md;
+	mode_t um;
+	struct stat st;
+	if ( (real_uid != daemon_uid) && (real_uid !=0)) {
+		exit_msg(SBS_EXIT_FAILED,
+			 "must be " DAEMON_USERNAME " or root to that");
+	}
+
+	PRIV_START();
+	/* become daemon and create queue/jobs and queue/spool */
+	setegid(daemon_gid);
+	seteuid(daemon_uid);
+	if (chdir(basename) < 0)
+		exit_msg(SBS_EXIT_CD_FAILED,
+			 "Could not switch to %s", basename);
+	if ( (stat(qname,&st) ==0) || (errno != ENOENT)) 
+		exit_msg(SBS_EXIT_FAILED,
+			 "%s exists already in the filesystem",
+			 qname);
+	um=umask(0);
+	md = S_IWUSR | S_IRUSR | S_IXUSR |
+		S_IRGRP | S_IXGRP |
+		S_IROTH | S_IXOTH;
+	if (mkdir(qname,md) < 0) 
+		exit_msg(SBS_EXIT_FAILED,
+			 "%s/%s creation failed", basename, qname);
+	if (chdir(qname) < 0)
+		exit_msg(SBS_EXIT_CD_FAILED,
+			 "Could not switch to %s/%s", basename, qname);
+	
+	md = S_IWUSR | S_IRUSR | S_IXUSR |
+		S_IWGRP | S_IRGRP | S_IXGRP |
+		S_ISVTX; /* sticky */
+	
+	if (mkdir(SBS_QUEUE_JOB_DIR, md) < 0)
+		exit_msg(SBS_EXIT_FAILED,
+			 "%s/%s/" SBS_QUEUE_JOB_DIR "creation failed", 
+			 basename, qname);
+	if (mkdir(SBS_QUEUE_SPOOL_DIR, md) < 0)
+		exit_msg(SBS_EXIT_FAILED,
+			 "%s/%s/" SBS_QUEUE_SPOOL_DIR "creation failed", 
+			 basename, qname);
+	umask(um);
+	PRIV_END();
+	return 0;
+}
+
 int q_lock_file(const char* fname, int wait)
 {
 	struct flock lck;
 	int lockfd;
 	PRIV_START();
+	setegid(daemon_gid);
+	seteuid(daemon_uid);
+
 	lockfd=open(fname, O_RDWR | O_CREAT,
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	if ( lockfd > -1 ) {
@@ -226,6 +280,7 @@ int q_job_list(const char* basedir, const char* queue,
 	struct stat st;
 	struct passwd* pentry;
 	pentry = getpwuid(real_uid);
+	int jbcnt=0;
 	if (pentry == NULL)
 		exit_msg(SBS_EXIT_FAILED,
 			 "Userid %lu not found",
@@ -245,6 +300,11 @@ int q_job_list(const char* basedir, const char* queue,
 		exit_msg(SBS_EXIT_FAILED,
 			 "could not read dir %s/%s/",
 			 basedir, queue);
+	fprintf(out, "%-20s\t%-8s\t%-10s\t%-10s\n", 
+		"# queue",
+		"id",
+		"owner",
+		"status");
 	
 	while ((dirent = readdir(jobs)) != NULL) {
 		long jobno;
@@ -259,7 +319,7 @@ int q_job_list(const char* basedir, const char* queue,
 		 */
 		if (!S_ISREG(st.st_mode)) 
 			continue;
-		if (sscanf(dirent->d_name,"j%08ld",&jobno) != 1)
+		if (sscanf(dirent->d_name,SBS_JOB_FILE_MASK,&jobno) != 1)
 			continue;
 		if ((real_uid == 0) || (real_uid == daemon_uid)) {
 			pentry = getpwuid(st.st_uid);
@@ -280,19 +340,21 @@ int q_job_list(const char* basedir, const char* queue,
 			jobstatname ="queued";
 			break;
 		case SBS_JOB_ACTIVE:
-			jobstatname ="active";
+			jobstatname ="ACTIVE";
 			break;
 		default:
 			jobstatname ="unknown";
 			break;
 		};
-		fprintf(out, "%8ld '%-20s' %-10s %-10s\n", 
-			jobno,
+		fprintf(out, "%-20s\t%-8ld\t%-10s\t%-10s\n", 
 			queue,
+			jobno,
 			pentry->pw_name,
 			jobstatname);
+		++jbcnt;
 	}
 	closedir(jobs);
+	fprintf(out, "# jobs: %i\n", jbcnt);
 }
 
 int q_job_cat(const char* basedir, const char* queue,
@@ -308,7 +370,7 @@ int q_job_cat(const char* basedir, const char* queue,
 		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
 			 "could not lock %s/%s/" 
 			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
-	snprintf(filename, sizeof(filename), "j%08ld", jobno);
+	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
 	PRIV_START();
 	seteuid(real_uid);
 	f = fopen(filename,"r");
@@ -335,7 +397,7 @@ int q_job_dequeue(const char* basedir, const char* queue, long jobno)
 		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
 			 "could not lock %s/%s/" 
 			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
-	snprintf(filename, sizeof(filename), "j%08ld", jobno);
+	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
 	if ( real_uid != 0) {
 		struct stat st;
 		PRIV_START();
@@ -412,7 +474,7 @@ int q_job_queue (const char* basedir, const char* queue,
 			 "could not lock %s/%s/" 
 			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
 	jobno = q_job_next();
-	snprintf(filename, sizeof(filename), "j%08ld", jobno);
+	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
 	msk = umask(0);
 
 	PRIV_START();
@@ -539,7 +601,9 @@ int q_job_queue (const char* basedir, const char* queue,
 	/* Set the x bit so that we're ready to start executing
 	 */
 	q_job_status_change (filename, SBS_JOB_QUEUED);
-	fprintf(stderr, "Job %ld will be executed using /bin/sh\n", jobno);
+	fprintf(stderr, 
+		"Job %s/%ld will be executed using /bin/sh\n", 
+		queue, jobno);
 	return 0;
 }
 

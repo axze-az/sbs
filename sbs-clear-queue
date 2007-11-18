@@ -1,0 +1,24 @@
+#! /bin/sh
+
+usage()
+{
+    echo $0 -q queuename
+    exit 1
+}
+
+main()
+{
+    if [ $# -ne 2 ] ; then
+	usage $0
+    fi
+    if [ ! x"$1" = x-q ] ; then
+	usage $0
+    fi
+    for i in `./sbs -q $2 -l | grep -v -e "^\#" | cut -f 2`; 
+    do 
+	sbs -q $2 -d $i; 
+    done
+    sbs -l -q $2
+}
+
+main $*

@@ -249,7 +249,11 @@ int q_job_list(const char* basedir, const char* queue,
 	while ((dirent = readdir(jobs)) != NULL) {
 		long jobno;
 		int status;
-		if (stat(dirent->d_name,&st) != 0)
+		const char* jobstatname;
+		PRIV_START();
+		status=stat(dirent->d_name,&st);
+		PRIV_END();
+		if ( status !=0)
 			continue;
 		/* We don't want directories
 		 */
@@ -257,13 +261,36 @@ int q_job_list(const char* basedir, const char* queue,
 			continue;
 		if (sscanf(dirent->d_name,"j%08ld",&jobno) != 1)
 			continue;
-		if ((real_uid !=0) && (st.st_uid != real_uid))
-			continue;
+		if ((real_uid == 0) || (real_uid == daemon_uid)) {
+			pentry = getpwuid(st.st_uid);
+			if (pentry == NULL)
+				exit_msg(SBS_EXIT_FAILED,
+					 "Userid %lu not found",
+					 (unsigned long) real_uid);
+		} else {
+			/* normal users see only their jobs */
+			if (st.st_uid != real_uid)
+				continue;
+		}
+		PRIV_START();
 		status=q_job_status (dirent->d_name);
-		fprintf(stdout, "%8ld\n %20s %10s %d", 
-			dirent->d_name,
+		PRIV_END();
+		switch (status) {
+		case SBS_JOB_QUEUED:
+			jobstatname ="queued";
+			break;
+		case SBS_JOB_ACTIVE:
+			jobstatname ="active";
+			break;
+		default:
+			jobstatname ="unknown";
+			break;
+		};
+		fprintf(out, "%8ld '%-20s' %-10s %-10s\n", 
+			jobno,
+			queue,
 			pentry->pw_name,
-			status);
+			jobstatname);
 	}
 	closedir(jobs);
 }
@@ -552,14 +579,14 @@ pid_t q_exec(const char* basedir, const char* queue,
 		.appdata_ptr = NULL
 	};
 #endif
-#if 0
+
 	pid = fork();
 	if ( pid != 0) {
 		if (pid < 0)
 			exit_msg(4,"cannot fork");
 		return pid;
 	}
-#endif
+
 	q_cd_job_dir(basedir, queue);
 	lockfd=q_lock_active_file (workernum);
 	if ( lockfd < 0 )

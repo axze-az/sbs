@@ -10,14 +10,13 @@
 #
 #set -x 
 
-D=/home/axel/work/C++/sbs
-PROG=$D/usr/sbin/sbsd
+PROG=/usr/sbin/sbsd
 NAME=sbs
-CONFIG_PATH=$D/etc/sbs
-PID_FILE_BASE=$D/var/run/sbsd-
+CONFIG_PATH=/etc/sbs
+PID_FILE_BASE=/var/run/sbsd-
 
 # Sanity checks.
-# [ -x $PROG ] || exit 0
+[ -x $PROG ] || exit 0
 
 CMD=echo
 RETVAL=0

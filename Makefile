@@ -10,6 +10,7 @@ SBS_QUEUE_DIR=${PREFIX}/var/spool/sbs
 RUN_DIR=${PREFIX}/var/run/
 PERM_PATH=${PREFIX}/etc/sbs/
 CRON_D_PATH=${PREFIX}/etc/cron.d
+INIT_DIR=${PREFIX}/etc/init.d
 
 DAEMON_USERNAME=daemon
 DAEMON_GROUPNAME=daemon
@@ -60,6 +61,7 @@ install: all
 # sbsd
 	mkdir -p ${IROOT}/${SBIN_DIR}
 	install -m 0755 -g root -o root sbsd ${IROOT}/${SBIN_DIR}
+	mkdir -p ${IROOT}/${RUN_DIR}
 # spool directory
 	mkdir -p ${IROOT}/${SBS_QUEUE_DIR}
 	chown daemon.daemon ${IROOT}/${SBS_QUEUE_DIR}
@@ -68,6 +70,12 @@ install: all
 	touch ${IROOT}/${PERM_PATH}/sbs.deny
 	chown root.daemon ${IROOT}/${PERM_PATH}/sbs.deny
 	chmod 0640 ${IROOT}/${PERM_PATH}/sbs.deny
+	for i in *.conf; do \
+		install -m 0644 -o root -g root $$i ${IROOT}/${PERM_PATH}; \
+	done  	
+# init.d
+	mkdir -p ${IROOT}/${INIT_DIR}
+	install -m 0755 -g root -o root sbs.init ${IROOT}/${INIT_DIR}
 
 distclean: clean
 	-$(RM) *~

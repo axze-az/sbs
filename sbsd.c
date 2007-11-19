@@ -239,6 +239,7 @@ int sbs_daemon(const char* basename, const char* queue,
 	if ( (sfd=q_notify_init(basename,queue)) <0 )
 		exit_msg(EXIT_FAILURE, "q_notify_init failed");
 
+	info_msg(SBS_VERSION);
 	info_msg("processing jobs between %02u:%02u and %02u:%02u",
 		 wtimes->_start_hour, wtimes->_start_min,
 		 wtimes->_end_hour, wtimes->_end_min);
@@ -292,7 +293,9 @@ static void usage(void)
 		"       sbsd -q queue -e\n"
 		"             erases queue\n"
 		"       sbsd -q queue -c\n"
-		"             creates queue\n");
+		"             creates queue\n"
+		"       sbsd -V\n"
+		"             prints the version\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -314,7 +317,7 @@ int main(int argc, char** argv)
 	wtimes._start_min=0;
 	wtimes._end_min=0;
 
-	while ((c=getopt(argc, argv, "a:q:t:w:n:drce")) != -1) {
+	while ((c=getopt(argc, argv, "a:q:t:w:n:drceV")) != -1) {
 		switch (c) {
 		case 'a':
 			switch( parse_work_times (optarg,&wtimes)) {
@@ -360,6 +363,10 @@ int main(int argc, char** argv)
 		case 'e': /* erase queue */
 			derase=1;
 			break;
+		case 'V':
+			info_msg(SBS_VERSION);
+			exit(0);
+			break;
 		case 'h':
 		case '?':
 			usage();
@@ -376,7 +383,7 @@ int main(int argc, char** argv)
 		if ( queue == 0)
 			usage();
 		daemonized=1;
-		openlog("sbsd", LOG_PID, LOG_DAEMON);
+		openlog("sbsrun", LOG_PID, LOG_DAEMON);
 		ws = alloca(workers*sizeof(pid_t));
 		memset(ws,0,workers*sizeof(pid_t));
 		sbs_run(SBS_QUEUE_DIR, queue, nicelvl,ws,workers);

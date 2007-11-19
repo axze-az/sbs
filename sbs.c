@@ -54,7 +54,8 @@ usage(void)
 	    "       sbs -q queue -c job [job ...]\n"
 	    "       sbs -q queue -d job [job ...]\n"
 	    "       sbs -q queue -l\n"
-	    "       sbs -q queue\n");
+	    "       sbs -q queue\n"
+	    "       sbs -V\n");
     exit(EXIT_FAILURE);
 }
 
@@ -69,7 +70,7 @@ int main(int argc, char** argv)
 	INIT_PRIVS();
 	RELINQUISH_PRIVS();
 
-	while ((c=getopt(argc, argv, "mq:f:d:c:l")) != -1) {
+	while ((c=getopt(argc, argv, "mq:f:d:lc:V")) != -1) {
 		switch (c) {
 		case 'q':    /* specify queue */
 			queue = optarg;
@@ -92,6 +93,10 @@ int main(int argc, char** argv)
 		case 'c':
 			cj=1;
 			jobno= atoi(optarg);
+			break;
+		case 'V':
+			info_msg(SBS_VERSION);
+			exit(0);
 			break;
 		case 'h':
 		case '?':

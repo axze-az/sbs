@@ -7,7 +7,7 @@
 #include <grp.h>
 #include <pwd.h>
 
-#define SBS_VERSION "simple batch system V0.2"
+#define SBS_VERSION "simple batch system V-0.2.0"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0

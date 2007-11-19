@@ -1,5 +1,12 @@
-sbs (0.0.1) unstable; urgency=low
+sbs (0.2.0) unstable; urgency=low
+
+  * First version with sbs running as suid/sgid daemon and
+    working daemon with notification.
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Mon, 19 Nov 2007 22:01:40 +0100
+
+sbs (0.1.0) unstable; urgency=low
 
   * Initial Release.
 
- -- axel <axel@alap.dagmar.axel.de>  Fri, 16 Nov 2007 17:59:12 +0100
+ -- axel zeuner <axel.zeuner@gmx.de>  Fri, 16 Nov 2007 17:59:12 +0100

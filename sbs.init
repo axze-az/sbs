@@ -1,0 +1,180 @@
+#! /bin/sh
+#
+# sbs.init:   The simple batch system daemons
+#
+# chkconfig: 2345 97 03
+# description:  Simple batch system daemons
+#
+# processname: sbsd
+# pidfile: /var/run/sbsd-*.pid
+#
+#set -x 
+
+D=/home/axel/work/C++/sbs
+PROG=$D/usr/sbin/sbsd
+NAME=sbs
+CONFIG_PATH=$D/etc/sbs
+PID_FILE_BASE=$D/var/run/sbsd-
+
+# Sanity checks.
+# [ -x $PROG ] || exit 0
+
+CMD=echo
+RETVAL=0
+
+# $1 qeue name $2 additional parms. creates the queue if required
+start_one()
+{
+    $CMD $PROG -c -q $1
+    $CMD $PROG -q $1 $2
+    echo "starting $PROG for queue $1"
+}
+
+# $1 queue name
+stop_one()
+{
+    if [ -f $PID_FILE_BASE$1.pid ] ; then
+        $CMD kill -TERM `cat $PID_FILE_BASE$1.pid`
+    else
+        echo "sbsd for queue $1 is probably not running"
+    fi
+}
+
+# $1 queue name
+status_one()
+{
+    if [ -f $PID_FILE_BASE$1.pid ] ; then
+        $CMD kill -0 `cat $PID_FILE_BASE$1.pid`
+        if [ $? -eq 0 ] ; then
+            echo "sbsd for queue $1 is running"
+        else
+            echo "sbds for queue $1 is not running"
+        fi
+    else
+        echo "sbds for queue $1 is not running"
+    fi
+}
+
+# NICE WORKERS ACTIVE TIMEOUT
+build_args()
+{
+    SBS_ARGS=''
+    if [ -n "$1" ] ; then
+        SBS_ARGS="$SBS_ARGS -n $1"
+    fi
+    if [ -n "$2" ] ; then
+        SBS_ARGS="$SBS_ARGS -w $2"
+    fi
+    if [ -n "$3" ] ; then
+        SBS_ARGS="$SBS_ARGS -a $3"
+    fi
+    if [ -n "$4" ] ; then
+        SBS_ARGS="$SBS_ARGS -t $4"
+    fi
+    echo "$SBS_ARGS"
+}
+
+# $1 name of a configuration.
+start1()
+{
+    if [ -f $CONFIG_PATH/$1.conf ] ; then
+        QUEUE=''
+        NICE=''
+        WORKERS=''
+        ACTVE=''
+        TIMEOUT=''
+        source $CONFIG_PATH/$1.conf
+        if [ -n $QUEUE ] ; then
+            SBS_ARGS=''
+            if [ -n "$NICE" ] ; then
+                SBS_ARGS="$SBS_ARGS -n $NICE"
+            fi
+            if [ -n "$WORKERS" ] ; then
+                SBS_ARGS="$SBS_ARGS -w $WORKERS"
+            fi
+            if [ -n "$ACTIVE" ] ; then
+                SBS_ARGS="$SBS_ARGS -a $ACTIVE"
+            fi
+            if [ -n "$TIMEOUT" ] ; then
+                SBS_ARGS="$SBS_ARGS -t $TIMEOUT"
+            fi
+            start_one $QUEUE "$SBS_ARGS"
+        else
+            echo "Sorry no QUEUE defined in $CONFIG_PATH/$1.conf"
+        fi 
+    else
+        echo "Sorry, $CONFIG_PATH/$1.conf does not exist"
+    fi
+}
+
+# $1 name of a configuration.
+start() 
+{
+    if [ -z "$1" ] ; then
+        for i in $CONFIG_PATH/*.conf ; do
+            start1 `basename $i .conf` 
+        done
+    else
+        start1 $1
+    fi
+}
+
+# $1 name of a configuration
+stop1()
+{
+    if [ -f $CONFIG_PATH/$1.conf ] ; then
+        QUEUE=''
+        source $CONFIG_PATH/$1.conf
+        if [ -n $QUEUE ] ; then
+            stop_one $QUEUE
+        else
+            echo "Sorry no QUEUE defined in $CONFIG_PATH/$1.conf"
+        fi 
+    else
+        echo "Sorry, $CONFIG_PATH/$1.conf does not exist"
+    fi
+}
+
+# $1 name of a configuration or nothing
+stop() 
+{
+    if [ -z "$1" ] ; then
+        for i in $CONFIG_PATH/*.conf ; do
+            stop1 `basename $i .conf` 
+        done
+    else
+        stop1 $1
+    fi
+}
+
+restart() 
+{
+    stop $1
+    start $1
+}	
+
+main()
+{
+    if [ ! -d $CONFIG_PATH/ ] ; then
+        echo "Configuration path \"$CONFIG_PATH\" does not exist"
+        exit 0
+    fi
+    case "$1" in
+        start)
+            start $2
+            ;;
+        stop)
+            stop $2
+            ;;
+        reload|restart)
+            restart $2
+            ;;
+        *)
+            echo $"Usage: $0 {start|stop|restart}"
+            exit 1
+    esac
+}
+
+main $1 $2
+exit $RETVAL
+

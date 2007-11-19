@@ -97,6 +97,64 @@ int q_cd_dir(const char* basename, const char* qname)
 	return 0;
 }
 
+#if 0
+int q_notify_init(const char* basename, const char* q)
+{
+        mode_t msk= umask(0);
+        int fd=-1,flag;
+        q_cd_dir(basename,q);
+        do {
+                if ((mknod("notify", S_IRUSR | S_IWUSR, S_IFIFO) <0) &&
+                    (errno != EEXIST)) {
+                        fd = -errno;
+                        break;
+                }
+                fd=open("notify", O_NONBLOCK | O_RDONLY | O_ASYNC);
+		if ( fd < 0)
+			break;
+                /* set sigio and close on exec. */
+		fcntl (fd, F_SETFD, FD_CLOEXEC);
+		fcntl (fd, F_SETOWN, getpid());
+		flag=fcntl (fd, F_GETFL, flag);
+		fcntl (fd, F_SETFL, flag | O_NONBLOCK | O_ASYNC);
+        } while (0);
+        umask(msk);
+        return fd;
+}
+
+int q_notify_handle(int fd)
+{
+        char buf[64];
+        /* dequeue all requests */
+        while ( read(fd,buf,sizeof(buf))>0);
+	return 0;
+}
+
+
+int q_notify_daemon(const char* basename, const char* q)
+{
+        // q_cd_dir(basename,q);
+        int fd;
+        sigset_t s,os;
+        sigfillset(&s);
+        sigprocmask(SIG_SETMASK,&s,&os);
+	q_cd_dir(basename,q);
+	PRIV_START();
+        if ((fd=open("notify", O_NONBLOCK | O_WRONLY | O_APPEND))>=0) {
+                char c=1;
+                if (write(fd,&c,1)!=1) {
+			info_msg("write: %s", strerror(errno));
+		}
+                close(fd);
+        } else {
+		info_msg("notify open: %s", strerror(errno));
+	}
+	PRIV_END();
+        sigprocmask(SIG_SETMASK,&os,0);
+	return fd >=0 ? 0 : -fd;
+}
+
+#else
 int q_notify_un(const char* basename, const char* qname,
 		struct sockaddr_un* addr)
 {
@@ -104,7 +162,7 @@ int q_notify_un(const char* basename, const char* qname,
 	memset(addr,0, sizeof(*addr));
 	addr->sun_family = AF_LOCAL; 
 	if ( snprintf(addr->sun_path, sizeof(addr->sun_path),
-		      "%s/%s/.n",basename, qname) >=
+		      "%s/%s/%s/.n",basename, qname, SBS_QUEUE_JOB_DIR) >=
 	     sizeof(addr->sun_path)) {
 		return -ENOMEM;
 	}
@@ -172,7 +230,7 @@ int q_notify_daemon( const char* basename, const char* qname)
 	close(sfd);
 	return r;
 }
-
+#endif
 
 int q_cd_job_dir (const char* basename, const char* qname)
 {

@@ -30,7 +30,7 @@ int sbs_run(const char* basename, const char* queue,
 	struct stat buf;
 	int lockfd;
 	int i;
-	int jobs;
+	int jobs=0;
 	unsigned long min_jobno=0;
 
 	q_cd_job_dir (basename, queue);

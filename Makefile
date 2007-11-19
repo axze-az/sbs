@@ -30,8 +30,8 @@ DEFS= \
 
 CC=gcc
 CXX=g++
-LD=$(CC)
-CFLAGS=-g $(DEFS) -I. -Wunused -ffunction-sections -fdata-sections -Wall
+LD=$(CC) -s
+CFLAGS=-s -O2 $(DEFS) -I. -Wunused -ffunction-sections -fdata-sections -Wall
 LDFLAGS=-g -L.
 ARFLAGS=rv
 
@@ -75,7 +75,7 @@ install: all
 	done  	
 # init.d
 	mkdir -p ${IROOT}/${INIT_DIR}
-	install -m 0755 -g root -o root sbs.init ${IROOT}/${INIT_DIR}
+	install -m 0755 -g root -o root sbs.init ${IROOT}/${INIT_DIR}/sbs
 
 distclean: clean
 	-$(RM) *~

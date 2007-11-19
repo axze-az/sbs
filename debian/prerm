@@ -1,0 +1,6 @@
+#! /bin/sh
+
+if [ -x /etc/init.d/sbs ]
+then
+	invoke-rc.d sbs stop || true
+fi

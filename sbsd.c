@@ -281,12 +281,13 @@ static void usage(void)
 {
 	/* Print usage and exit. */
 	fprintf(stderr, 
-		"usage: sbsd [-q queue] [-t T] [-w W] [-d] [-n N] \n"
+		"usage: sbsd [-q queue] [-t T] [-w W] [-d] [-n N] [-l L]\n"
 		"            runs the sbs daemon\n"
 		"            queue is the name of the queue to process,\n"
 		"            T (1-..) the polling timeout in seconds ,\n"
 		"            W (1-32) the number of parallel jobs,\n"
 		"            N (1-19) the nice value of the workers and\n"
+		"            L (0...) the load average in the last 5 minutes\n"
 		"            d a debug helper option\n"
 		"       sbsd [-q queue] [-w W] -r\n"
 		"            runs W jobs from the queue\n"

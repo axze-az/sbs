@@ -7,6 +7,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#define SBS_VERSION "0.1"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0

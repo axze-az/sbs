@@ -163,7 +163,7 @@ int q_notify_un(const char* basename, const char* qname,
 	addr->sun_family = AF_LOCAL; 
 	if ( snprintf(addr->sun_path, sizeof(addr->sun_path),
 		      "%s/%s/%s/.n",basename, qname, SBS_QUEUE_JOB_DIR) >=
-	     sizeof(addr->sun_path)) {
+	     (int)sizeof(addr->sun_path)) {
 		return -ENOMEM;
 	}
 	return 0;
@@ -173,7 +173,7 @@ int q_notify_init(const char* basename, const char* qname)
 {
 	struct sockaddr_un addr;
 	int sfd;
-	long flag;
+	int flag;
 	int msk;
 	if ( (sfd=q_notify_un(basename, qname, &addr)) <0)
 		return sfd;
@@ -185,7 +185,7 @@ int q_notify_init(const char* basename, const char* qname)
 	bind(sfd, (struct sockaddr* )&addr,sizeof(addr));
 	fcntl (sfd, F_SETFD, FD_CLOEXEC);
 	fcntl (sfd, F_SETOWN, getpid());
-	flag=fcntl (sfd, F_GETFL, flag);
+	flag=fcntl (sfd, F_GETFL, 0);
 	fcntl (sfd, F_SETFL, flag | O_NONBLOCK | O_ASYNC);
 	listen( sfd, 10);
 	umask(msk);
@@ -345,9 +345,9 @@ int q_write_pidfile(const char* qname)
 			lockfd=t;
 		} else {
 			char pidbuf[64];
-			size_t s=snprintf(pidbuf,sizeof(pidbuf),
-					  "%ld\n", (long)getpid());
-			if ( (s >= sizeof(pidbuf)) ||
+			ssize_t s=snprintf(pidbuf,sizeof(pidbuf),
+					   "%ld\n", (long)getpid());
+			if ( (s >= (ssize_t)sizeof(pidbuf)) ||
 			     (write(lockfd,pidbuf,s) != s)) {
 				int t=-errno;
 				close(lockfd);

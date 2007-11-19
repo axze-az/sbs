@@ -17,7 +17,7 @@ int sbs_queue_job(const char* basedir,
 	char wd[PATH_MAX];
 	getcwd(wd,sizeof(wd));
 	q_job_queue (basedir, queue,job,
-		     wd,0);
+		     wd,force_mail);
 	if (q_notify_daemon(basedir, queue)<0) {
 		exit_msg(3,"notify failed, daemon probably not running");
 	}

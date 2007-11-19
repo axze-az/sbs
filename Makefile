@@ -30,8 +30,11 @@ DEFS= \
 
 CC=gcc
 CXX=g++
-LD=$(CC) -s
-CFLAGS=-s -O2 $(DEFS) -I. -Wunused -ffunction-sections -fdata-sections -Wall
+WARN=-Wall -Werror -W
+OPT=-O2 -Wunused -ffunction-sections -fdata-sections 
+STRIP=-s
+LD=$(CC) $(STRIP)
+CFLAGS=$(STRIP) $(OPT) $(DEFS) -I. $(WARN)
 LDFLAGS=-g -L.
 ARFLAGS=rv
 

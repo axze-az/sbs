@@ -191,6 +191,9 @@ void handle_childs(pid_t* pids, int n)
 static
 void dummy_sighdlr(int sig, siginfo_t* sa, void* ctx)
 {
+	(void)sig;
+	(void)sa;
+	(void)ctx;
 }
 
 static

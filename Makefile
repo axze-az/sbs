@@ -40,7 +40,7 @@ ARFLAGS=rv
 
 all: progs 
 
-PROGS= sbsd sbs
+PROGS= sbsd sbs sbs-list-queues
 SCRIPTS= sbs-clear-queue
 progs: $(PROGS) $(SCRIPTS)
 
@@ -52,6 +52,10 @@ SBS_O=sbs.o q.o privs.o
 sbs: $(SBS_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
 
+sbs-list-queues: sbs-list-queues.in
+	cat $< | sed s^SBS_CFG_PATH_IN^SBS_CFG_PATH\=\"${PERM_PATH}\"^ >$@
+	chmod +x $@
+
 clean:
 	-$(RM) *.o $(PROGS) sbs.cron
 
@@ -61,6 +65,7 @@ install: all
 	install -m 06755 -g ${DAEMON_GROUPNAME} -o ${DAEMON_USERNAME} \
  sbs ${IROOT}/${BIN_DIR}
 	install sbs-clear-queue ${IROOT}/${BIN_DIR}
+	install sbs-list-queues ${IROOT}/${BIN_DIR}
 # sbsd
 	mkdir -p ${IROOT}/${SBIN_DIR}
 	install -m 0755 -g root -o root sbsd ${IROOT}/${SBIN_DIR}

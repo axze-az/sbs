@@ -1,0 +1,28 @@
+#! /bin/sh
+
+PATH=$PATH:`dirname $0` 
+SBS_CFG_PATH_IN
+
+usage()
+{
+    echo $0 -q queuename
+    exit 1
+}
+
+main()
+{
+    if [ $# -ne 0 ] ; then
+	usage $0
+    fi
+    for i in $SBS_CFG_PATH/*.conf
+    do
+	if [ -f $i ] ; then
+	    QUEUE=''
+	    source $i
+	    echo "queue $QUEUE"
+	    sbs -l -q $QUEUE 2>/dev/null
+	fi
+    done
+}
+
+main $*

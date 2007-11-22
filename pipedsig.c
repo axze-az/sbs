@@ -7,8 +7,7 @@
 
 static int pipefds[2]={-1,-1};
 
-static
-void pipedsig_atexit(void)
+void pipedsig_term(void)
 {
         if (pipefds[1] >= 0)
                 close(pipefds[1]);
@@ -47,7 +46,7 @@ int pipedsig_init(void)
                         fcntl(pipefds[i],F_SETFL, flags | O_NONBLOCK);
                         fcntl(pipefds[i],F_SETFD, FD_CLOEXEC);
                 }
-                atexit(pipedsig_atexit);
+                atexit(pipedsig_term);
         }
         return rc;
 }

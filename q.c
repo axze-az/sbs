@@ -104,7 +104,7 @@ int q_notify_init(const char* basename, const char* q)
         int fd=-1,flag;
         q_cd_dir(basename,q);
         do {
-                if ((mknod("notify", S_IRUSR | S_IWUSR, S_IFIFO) <0) &&
+                if ((mknod("notify", S_IRUSR | S_IWUSR| S_IFIFO,0) <0) &&
                     (errno != EEXIST)) {
                         fd = -errno;
                         break;

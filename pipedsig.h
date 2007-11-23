@@ -15,6 +15,9 @@ extern int pipedsig_readfd(void);
 extern int pipedsig_signal(int sig, int sa_flags, struct sigaction* old);
 /* close the internal used pipe, but does not reset the signal handlers */
 extern void pipedsig_term(void);
+/* read a signal structure, returns 0 if nothing was read, signum
+ * otherwise */
+extern int pipedsig_read(siginfo_t* info);
 
 #if defined (_cplusplus)
 }

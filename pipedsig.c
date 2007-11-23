@@ -13,6 +13,8 @@ void pipedsig_term(void)
                 close(pipefds[1]);
         if (pipefds[0] >= 0)
                 close(pipefds[0]);
+	pipefds[0]=-1;
+	pipefds[1]=-1;
 }
 
 static
@@ -34,9 +36,30 @@ void pipedsig_handler(int sig, siginfo_t* info, void* ctx)
         (void)sig;
 }
 
+int pipedsig_read(siginfo_t* info)
+{
+	int rc;
+	int fd=pipedsig_readfd();
+	errno =0;
+	while(((rc=read(fd,info,sizeof(*info)))!=(int)sizeof(*info)) &&
+	      (errno==EINTR));
+	switch (rc) {
+	case -1:
+		rc = -errno;
+		break;
+	case 0:
+		break;
+	default:
+		rc = info->si_signo;
+		break;
+	}
+	return rc;
+}
+
 int pipedsig_init(void)
 {
         int rc;
+	pipedsig_term();
         if ((rc=pipe(pipefds))< 0) {
                 rc= -errno;
         } else {
@@ -46,7 +69,6 @@ int pipedsig_init(void)
                         fcntl(pipefds[i],F_SETFL, flags | O_NONBLOCK);
                         fcntl(pipefds[i],F_SETFD, FD_CLOEXEC);
                 }
-                atexit(pipedsig_term);
         }
         return rc;
 }
@@ -111,10 +133,11 @@ int main()
                 }
                 if ( fds[0].revents & POLLIN ) {
                         struct siginfo info;
-                        while (read(fds[0].fd,&info,sizeof(info)) ==
-                               (ssize_t)sizeof(info)) {
-                                fprintf(stdout, "%s received\n",
-                                        strsignal(info.si_signo));
+			int i;
+			while ((i=pipedsig_read(&info))>=0) {
+                                fprintf(stdout, "%s/%s received\n",
+                                        strsignal(info.si_signo),
+					strsignal(i));
                                 if ( (info.si_signo == SIGTERM) ||
                                      (info.si_signo == SIGQUIT) ||
                                      (info.si_signo == SIGINT)) {

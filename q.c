@@ -864,7 +864,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 	lockfd=q_lock_active_file (workernum);
 	if ( lockfd < 0 )
 		exit_msg(SBS_EXIT_ACTIVE_LOCK_FAILED, 
-			 "%s worker lock failed", queue);
+			 "%s worker %i lock failed", queue, workernum);
 
 	if ( q_job_status_change (filename, SBS_JOB_ACTIVE) <0) {
 		exit_msg(SBS_EXIT_EXEC_FAILED,

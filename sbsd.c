@@ -21,6 +21,7 @@ void sbs_create(const char* basename, const char* queue)
 		info_msg("created queue %s at %s", queue, basename);
 }
 
+/* returns number of outstanding jobs */
 static
 int sbs_run(const char* basename, const char* queue, 
 	    int nicelvl, pid_t* pids, int workernum)
@@ -66,6 +67,7 @@ int sbs_run(const char* basename, const char* queue,
 			if (sscanf(dirent->d_name,"j%05lx",&jobno) != 1)
 				continue;
 			if (q_job_status (dirent->d_name) == SBS_JOB_QUEUED) {
+				++jobs;
 				if ( (jobno >= min_jobno) &&
 				     (jobno < batch_jobno) ) {
 					batch_run = 1;
@@ -86,7 +88,7 @@ int sbs_run(const char* basename, const char* queue,
 				       batch_name, batch_uid, batch_gid,
 				       batch_jobno,nicelvl,i);
 			if (pids[i] >= 0)
-				++jobs;
+				--jobs;
 		} else {
 			break;
 		}
@@ -172,15 +174,30 @@ void handle_childs(pid_t* pids, int n)
 	pid_t p;
 	int status;
 	while ( (p=waitpid(-1, &status, WNOHANG))>0) {
-		if ( WIFEXITED(status) || WIFSIGNALED(status)) {
+		int ex=0;
+		int rc=0;
+		if ( WIFEXITED(status) ) {
+			ex=1;
+			rc=WEXITSTATUS(status);
+		} else if ( WIFSIGNALED(status)) {
+			ex=2;
+			rc=WTERMSIG(status);
+		}
+		if ( ex ) {
 			int i;
-			info_msg("child %i terminated", p);
+ 			info_msg("child %i terminated with code %i", p ,rc);
 			for (i=0;i<n;++i) {
 				/* clean entry */
-				if (pids[i]==p) {
+				if (pids[i]!=p) 
+					continue;
+				if ((ex == 1) && 
+				    (rc ==SBS_EXIT_ACTIVE_LOCK_FAILED)) {
+					info_msg("disabling worker %i",i);
+					pids[i]=-1;
+				} else {
 					pids[i]=0;
-					break;
 				}
+				break;
 			}
 			if ( i == n )
 				info_msg("spurios child %i terminated", p);
@@ -205,7 +222,7 @@ int sbs_daemon(const char* basename, const char* queue,
 {
 	char buf[256];
 	int lockfd,sfd;
-	sigset_t sigm,sigs;
+	sigset_t sigm;
 	struct sigaction sa;
 	pid_t* pids;
 
@@ -217,14 +234,6 @@ int sbs_daemon(const char* basename, const char* queue,
 	/* block all signals */
 	sigfillset(&sigm);
 	sigprocmask(SIG_SETMASK,&sigm,NULL);
-	/* prepare signal mask for receiving of piped signals */
-	sigfillset(&sigs);
-	sigdelset(&sigs, SIGCHLD);
-	sigdelset(&sigs, SIGTERM);
-	sigdelset(&sigs, SIGQUIT);
-	sigdelset(&sigs, SIGINT);
-	sigdelset(&sigs, SIGIO);
-	sigdelset(&sigs, SIGURG);
 	
 	pids = calloc(sizeof(pid_t),workernum);
 	if ( pids == 0)
@@ -265,13 +274,19 @@ int sbs_daemon(const char* basename, const char* queue,
 			sbs_run(basename, queue, nicelvl, 
 				pids,workernum);
 		iret = sigtimedwait(&sigm,&sinfo,&t);
-		if ( iret < 0 )
+		if ( iret < 0 ) {
+			int i;
+			for (i=0;i<workernum;++i) {
+				if (pids[i]==-1)
+					pids[i]=0;
+			}
 			continue;
+		}
 		/* handle signals */
 		if ( (sinfo.si_signo == SIGIO) || 
 		     (sinfo.si_signo == SIGURG))  {
 			q_notify_handle(sfd);
-			/* info_msg("SIGIO/SIGURG"); */
+			info_msg("wakeup SIGIO/SIGURG"); 
 			continue; /* wakeup from sbsd_notify */
 		} else if (sinfo.si_signo == SIGCHLD) {
 			handle_childs(pids, workernum);

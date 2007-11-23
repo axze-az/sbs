@@ -205,7 +205,7 @@ int sbs_daemon(const char* basename, const char* queue,
 {
 	char buf[256];
 	int lockfd,sfd;
-	sigset_t sigm;
+	sigset_t sigm,sigs;
 	struct sigaction sa;
 	pid_t* pids;
 
@@ -214,9 +214,18 @@ int sbs_daemon(const char* basename, const char* queue,
 	snprintf(buf,sizeof(buf), "sbsd-%s", queue);
 	openlog(buf, LOG_PID | (debug ? LOG_PERROR :0), LOG_DAEMON);
 
+	/* block all signals */
 	sigfillset(&sigm);
 	sigprocmask(SIG_SETMASK,&sigm,NULL);
-
+	/* prepare signal mask for receiving of piped signals */
+	sigfillset(&sigs);
+	sigdelset(&sigs, SIGCHLD);
+	sigdelset(&sigs, SIGTERM);
+	sigdelset(&sigs, SIGQUIT);
+	sigdelset(&sigs, SIGINT);
+	sigdelset(&sigs, SIGIO);
+	sigdelset(&sigs, SIGURG);
+	
 	pids = calloc(sizeof(pid_t),workernum);
 	if ( pids == 0)
 		exit_msg(EXIT_FAILURE, "out of memory");

@@ -35,7 +35,7 @@ OPT=-O2 -Wunused -ffunction-sections -fdata-sections
 STRIP=-s
 LD=$(CC) $(STRIP)
 CFLAGS=$(STRIP) $(OPT) $(DEFS) -I. $(WARN)
-LDFLAGS=-g -L.
+LDFLAGS=$(STRIP) -L.
 ARFLAGS=rv
 
 all: progs 

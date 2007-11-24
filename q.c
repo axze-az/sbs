@@ -256,6 +256,18 @@ int q_cd_spool_dir (const char* basename, const char* qname)
 	return 0;
 }
 
+void q_disable_signals(sigset_t* s)
+{
+	sigset_t m;
+	sigfillset(&m);
+	sigprocmask(SIG_SETMASK,&m,s);
+}
+
+void q_restore_signals(const sigset_t* s)
+{
+	sigprocmask(SIG_SETMASK,s,NULL);
+}
+
 int q_create(const char* basename, const char* qname)
 {
 	mode_t md;
@@ -655,7 +667,8 @@ static const char *no_export[] = {
 
 int q_job_queue (const char* basedir, const char* queue,
 		 FILE* job, const char* workingdir, 
-		 int force_mail)
+		 int force_mail,
+		 char* fname, size_t s)
 {
 	int lockfd;
 	int fd;
@@ -668,7 +681,8 @@ int q_job_queue (const char* basedir, const char* queue,
 	int i;
 	struct passwd *pass_entry;
 	char c;
-	
+	sigset_t sm;
+
 	q_cd_job_dir (basedir, queue);
 	lockfd = q_lock_job_file();
 	if ( lockfd < 0 ) 
@@ -676,7 +690,13 @@ int q_job_queue (const char* basedir, const char* queue,
 			 "could not lock %s/%s/" 
 			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
 	jobno = q_job_next();
+	q_disable_signals (&sm);
 	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
+	if ( snprintf(fname,s,
+		      "%s/%s/" SBS_QUEUE_JOB_DIR "/" SBS_JOB_FILE_MASK, 
+		      basedir,queue,jobno) >= (int)s) 
+		exit_msg(SBS_EXIT_FAILED, "buffer size too small");
+	q_restore_signals (&sm);
 	msk = umask(0);
 
 	PRIV_START();
@@ -802,7 +822,10 @@ int q_job_queue (const char* basedir, const char* queue,
 	fclose(f);
 	/* Set the x bit so that we're ready to start executing
 	 */
+	q_disable_signals(&sm);
 	q_job_status_change (filename, SBS_JOB_QUEUED);
+	fname[0]=0;
+	q_restore_signals(&sm);
 	fprintf(stderr, 
 		"Job %s/%ld will be executed using /bin/sh\n", 
 		queue, jobno);
@@ -1070,6 +1093,8 @@ pid_t q_exec(const char* basedir, const char* queue,
 				starttime.tv_usec/(10*1000);
 			cpu = elapsed ? (100*(user + sys))/elapsed : 0;
 			fprintf(stream, 
+				"-----------------------------------"
+				"-----------------------------------\n"
 				"Ressource usage:\n"
 				"%ld.%02lduser %ld.%02ldsystem "
 				"%ld:%02ld.%02ldelapsed "

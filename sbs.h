@@ -6,8 +6,9 @@
 #include <stdarg.h>
 #include <grp.h>
 #include <pwd.h>
+#include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.3.0"
+#define SBS_VERSION "simple batch system V-0.3.2"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0
@@ -51,6 +52,9 @@ extern int q_notify_daemon(const char* basename, const char* qname);
 
 extern int q_create(const char* basename, const char* qname);
 
+extern void q_disable_signals(sigset_t* sigs);
+extern void q_restore_signals(const sigset_t* sigs);
+
 extern pid_t q_read_pidfile(const char* qname);
 extern int q_write_pidfile(const char* qname);
 
@@ -65,7 +69,8 @@ extern long q_job_next(void);
 
 extern int q_job_queue (const char* basedir, const char* queue,
 			FILE* job, const char* workingdir, 
-			int force_mail);
+			int force_mail,
+			char* fname, size_t s);
 extern int q_job_dequeue(const char* basedir, const char* queue, long jobid);
 extern int q_job_cat(const char* basedir, const char* queue,
 		     long jobid, FILE* out);

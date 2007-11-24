@@ -10,14 +10,52 @@
 #include <errno.h>
 #include <string.h>
 
+static char g_namebuf[PATH_MAX];
+
+static void sighdlr(int sig, siginfo_t* info, void* ctx)
+{
+	(void)sig;
+	(void)info;
+	(void)ctx;
+	PRIV_START();
+	if ( strlen(g_namebuf) != 0) 
+		unlink(g_namebuf);
+	PRIV_END();
+#if 0
+	fprintf(stderr, "%s sighdlr called\n", g_namebuf);
+#endif
+	exit(3);
+}
+
 int sbs_queue_job(const char* basedir, 
 		  const char* queue, 
 		  FILE* job, int force_mail)
 {
+	sigset_t sigm;
+	struct sigaction sa;
 	char wd[PATH_MAX];
+	/* block all signals */
+	sigfillset(&sigm);
+	sigprocmask(SIG_SETMASK,&sigm,NULL);
+	g_namebuf[0]=0;
+	/* set dummy sigchld handler for SIG_CHLD that we get signals. */
+	memset(&sa,0,sizeof(sa));
+	sigfillset(&sa.sa_mask);
+	sa.sa_sigaction = sighdlr;
+	sa.sa_flags = SA_SIGINFO;
+	if ( (sigaction(SIGQUIT, &sa,NULL) < 0) ||
+	     (sigaction(SIGHUP, &sa,NULL) < 0) ||
+	     (sigaction(SIGINT, &sa,NULL) < 0) ||
+	     (sigaction(SIGTERM, &sa,NULL) < 0))
+		exit_msg(3,"could not install signal handlers");
+	sigdelset(&sigm, SIGQUIT);
+	sigdelset(&sigm, SIGHUP);
+	sigdelset(&sigm, SIGINT);
+	sigdelset(&sigm, SIGTERM);
+	sigprocmask(SIG_SETMASK,&sigm,NULL);
 	getcwd(wd,sizeof(wd));
 	q_job_queue (basedir, queue,job,
-		     wd,force_mail);
+		     wd,force_mail,g_namebuf, sizeof(g_namebuf));
 	if (q_notify_daemon(basedir, queue)<0) {
 		exit_msg(3,"notify failed, daemon probably not running");
 	}

@@ -1,3 +1,9 @@
+sbs (0.3.2) unstable; urgency=low
+
+  * Delete not fully delivered jobs in sbs.
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 24 Nov 2007 22:49:00 +0100
+
 sbs (0.3.1) unstable; urgency=low
 
   * Lesser informational messages. Update of the default configurations.

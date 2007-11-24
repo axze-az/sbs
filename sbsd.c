@@ -13,6 +13,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <wait.h>
+#include <errno.h>
 
 static
 void sbs_create(const char* basename, const char* queue)
@@ -21,17 +22,29 @@ void sbs_create(const char* basename, const char* queue)
 		info_msg("created queue %s at %s", queue, basename);
 }
 
-/* returns number of outstanding jobs */
+static
+double sbs_loadavg(void)
+{
+	double loadav[3];
+	if (getloadavg(loadav,sizeof(loadav)/sizeof(loadav[0]))<0) {
+		loadav[0]=1.0;
+	} 
+	return loadav[0];
+}
+
+/* returns if more outstanding jobs exists */
 static
 int sbs_run(const char* basename, const char* queue, 
-	    int nicelvl, pid_t* pids, int workernum)
+	    int nicelvl, double maxloadavg,
+	    pid_t* pids, int workernum,
+	    int notifyfd)
 {
 	DIR *spool;
 	struct dirent *dirent;
 	struct stat buf;
 	int lockfd;
 	int i;
-	int jobs=0;
+	int jobs=0,started=0;
 	unsigned long min_jobno=0;
 
 	q_cd_job_dir (basename, queue);
@@ -47,7 +60,7 @@ int sbs_run(const char* basename, const char* queue,
 		unsigned long batch_jobno=(unsigned long)-1;
 		uid_t batch_uid;
 		gid_t batch_gid;
-
+		double loadav;
 		if (pids[i] != (pid_t)0)
 			continue;
 		if ((spool = opendir(".")) == NULL)
@@ -80,21 +93,31 @@ int sbs_run(const char* basename, const char* queue,
 			}
 		}
 		closedir(spool);
+		loadav = sbs_loadavg ();
 		/* run a single file, if any */
-		if (batch_run) {
-			min_jobno= batch_jobno+1;
-			pids[i]=q_exec(basename, queue,
-				       batch_name, batch_uid, batch_gid,
-				       batch_jobno,nicelvl,i);
-			if (pids[i] > 0)
-				--jobs;
+		if ((batch_run>0) && (loadav <= maxloadavg) ) {
+
+			if ( loadav <= maxloadavg) {
+				min_jobno= batch_jobno+1;
+				pids[i]=q_exec(basename, queue,
+					       batch_name, batch_uid, 
+					       batch_gid, batch_jobno,
+					       nicelvl,i,notifyfd);
+				if ( pids[i] > 0 )
+					++started;
+			} else {
+			}
 		} else {
+			if ( loadav > maxloadavg)
+				info_msg("load average %.1f >= threshold %.1f",
+					 loadav,maxloadavg);
 			break;
 		}
 	}
 	close(lockfd);
-	return jobs;
+	return jobs > started ? 1 : 0;
 }
+
 
 struct work_times {
 	int _start_hour;
@@ -102,42 +125,6 @@ struct work_times {
 	int _end_hour;
 	int _end_min;
 };
-
-
-static 
-int check_work_times(const struct work_times* w)
-{
-	struct tm tm;
-	struct timeval tv;
-	time_t t;
-	int val=1;
-
-	int ta,tb,tc;
-
-	gettimeofday(&tv,0);
-	t = (time_t)tv.tv_sec;
-	localtime_r(&t,&tm);
-
-	ta = w->_start_hour*100 + w->_start_min;
-	tb =w->_end_hour*100 + w->_end_min;
-		
-	tc = tm.tm_hour*100 + tm.tm_min;
-	
-	if ( ta > tb ) {
-		/* runs over night */
-		if ((ta <= tc) || (tc<=tb))
-			val =0;
-	} else {
-		/* daily runs */
-		if ((ta <= tc) && (tc<=tb)) 
-			val =0;
-	}
-#if 0
-	info_msg("ta=%u tc=%u tb=%u val=%i", ta, tc, tb,val); 
-	info_msg("uid=%i gid=%i", geteuid(), getegid());
-#endif
-	return val;
-} 
 
 static
 int parse_work_times(const char* buffer, struct work_times* w)
@@ -167,8 +154,51 @@ int parse_work_times(const char* buffer, struct work_times* w)
 	return 0;
 }
 
+struct sbsd_data_s {
+	int _lock_fd;
+	int _notify_fd;
+	struct work_times _work_times;
+	int _timeout;
+	int _workers;
+	/* worker childs */
+	pid_t* _pids;
+	/* when _pids[i] was disabled */
+	struct timeval* _disabled;
+};
+
 static
-void handle_childs(pid_t* pids, int n)
+void sbsd_data_dtor(struct sbsd_data_s* d)
+{
+	if (d->_pids)
+		free(d->_pids);
+	if (d->_disabled)
+		free(d->_disabled);
+	memset(d,0,sizeof(*d));
+}
+
+static 
+int sbsd_data_ctor(struct sbsd_data_s* d, int workers, 
+		   const struct work_times* t, int timeout)
+{
+	int rc=0;
+	memset(d,0,sizeof(*d));
+	d->_lock_fd = -1;
+	d->_notify_fd = -1;
+	d->_workers=workers;
+	if ( t )
+		memcpy(&d->_work_times,t,sizeof(*t));
+	d->_timeout=timeout;
+	d->_pids=calloc(workers,sizeof(pid_t));
+	d->_disabled=calloc(workers,sizeof(struct timespec));
+	if ((d->_disabled == NULL) || (d->_pids== NULL)) {
+		sbsd_data_dtor(d);
+		rc = -ENOMEM;
+	}
+	return rc;
+}
+
+static
+void handle_childs(struct sbsd_data_s* d)
 {
 	pid_t p;
 	int status;
@@ -185,24 +215,114 @@ void handle_childs(pid_t* pids, int n)
 		if ( ex ) {
 			int i;
  			info_msg("child %i terminated with code %i", p ,rc);
-			for (i=0;i<n;++i) {
+			for (i=0;i<d->_workers;++i) {
 				/* clean entry */
-				if (pids[i]!=p) 
+				if (d->_pids[i]!=p) 
 					continue;
 				if ((ex == 1) && 
 				    (rc ==SBS_EXIT_ACTIVE_LOCK_FAILED)) {
 					info_msg("disabling worker %i",i);
-					pids[i]=-1;
+					gettimeofday(&d->_disabled[i],0);
+					d->_pids[i]=-1;
 				} else {
-					pids[i]=0;
+					d->_pids[i]=0;
 				}
 				break;
 			}
-			if ( i == n )
-				info_msg("spurios child %i terminated", p);
+			if ( i == d->_workers )
+				warn_msg("spurios child %i terminated", p);
 		}
 	} 
 }
+
+static 
+int check_times(struct sbsd_data_s* dta, struct timeval* now, 
+		struct timespec* tmo)
+{
+	struct tm tm;
+	time_t t;
+	int inactive=1;
+	long ta,tb,tc;
+	gettimeofday(now,0);
+	t = (time_t)now->tv_sec;
+	localtime_r(&t,&tm);
+
+	ta =dta->_work_times._start_hour*60+dta->_work_times._start_min;
+	ta*=60;
+	tb =dta->_work_times._end_hour*60+dta->_work_times._end_min;
+	tb*=60;
+	tc =tm.tm_hour*60 + tm.tm_min;
+	tc*=60;
+	tc+=tm.tm_sec;
+	
+	if ( ta > tb ) {
+		/* runs over night */
+		if ( (ta <= tc) || (tc <=tb)) {
+			inactive = 0;
+		} else {
+			inactive = 1;
+			tmo->tv_sec = ta -tc;
+		}
+	} else {
+		/* daily runs */
+		if ( tc < ta ) {
+			inactive = 1;
+			tmo->tv_sec = ta -tc ;
+		} else if ( tc > tb ) {
+			inactive = 1;
+			tmo->tv_sec = 24*3600 -tc + ta;
+		} else {
+			inactive =0;
+		}
+	}
+#if 0
+	info_msg("check_status: inactive=%d wait=%ds",
+		 inactive,tmo->tv_sec);
+	info_msg("ta=%u tc=%u tb=%u", ta, tc, tb); 
+#endif
+	return inactive;
+}
+
+static 
+int check_workers(struct sbsd_data_s* dta, const struct timeval* now,
+		  int jobs_avail,
+		  struct timespec* tmo)
+{
+	int i,workers_avail=0,workers_active=0,workers_inactive=0;
+	for (i=0;i< dta->_workers; ++i) {
+		if (dta->_pids[i] == 0) {
+			++workers_avail;
+			continue;
+		}
+		if (dta->_disabled[i].tv_sec == 0) {
+			++workers_active;
+			continue;
+		}
+		if (dta->_disabled[i].tv_sec + dta->_timeout <= now->tv_sec) {
+			dta->_disabled[i].tv_sec =0;
+			dta->_disabled[i].tv_sec =0;
+			dta->_pids[i] =0;
+			info_msg("reactivating worker %i",i);
+			++workers_avail;
+		} else {
+			/* determine next wakeup to reactivate the worker */
+			long dt= dta->_timeout + now->tv_sec - 
+				dta->_disabled[i].tv_sec; 
+			if (dt<tmo->tv_sec)
+				tmo->tv_sec=dt;
+			++workers_inactive;
+		}
+	}
+	if ((workers_active == dta->_workers) || 
+	    ((jobs_avail ==0) && (workers_inactive==0)) )
+		tmo->tv_sec= 24*3600;
+#if 0
+	info_msg("check_workers: wait=%ds workers_avail=%d workers_active=%d "
+		 "jobs_avail=%d",
+		 tmo->tv_sec, workers_avail, workers_active, jobs_avail);
+#endif
+	return ((workers_avail > 0) && (jobs_avail>0)) ? 0: 1;
+} 
 
 static
 void dummy_sighdlr(int sig, siginfo_t* sa, void* ctx)
@@ -213,34 +333,37 @@ void dummy_sighdlr(int sig, siginfo_t* sa, void* ctx)
 }
 
 static
+void sbsd_openlog(const char* queue, int debug)
+{
+	char buf[256];
+	snprintf(buf,sizeof(buf), "sbsd-%s", queue);
+	openlog(buf, LOG_PID | (debug ? LOG_PERROR :0), LOG_DAEMON);
+}
+
+static
 int sbs_daemon(const char* basename, const char* queue, 
-	       int nicelvl, int workernum, 
+	       int nicelvl, double maxloadav, int workernum, 
 	       const struct work_times* wtimes,
 	       int timeout, 
 	       int debug)
 {
-	char buf[256];
-	int lockfd,sfd;
 	sigset_t sigm;
 	struct sigaction sa;
-	pid_t* pids;
-
+	struct sbsd_data_s sdta;
+	int done=0,jobs_avail=1; /* force an initial check */
 	daemonized=1;
-
-	snprintf(buf,sizeof(buf), "sbsd-%s", queue);
-	openlog(buf, LOG_PID | (debug ? LOG_PERROR :0), LOG_DAEMON);
+	sbsd_openlog(queue, debug);
 
 	/* block all signals */
 	sigfillset(&sigm);
 	sigprocmask(SIG_SETMASK,&sigm,NULL);
 	
-	pids = calloc(sizeof(pid_t),workernum);
-	if ( pids == 0)
+	if (sbsd_data_ctor(&sdta,workernum,wtimes,timeout)<0)
 		exit_msg(EXIT_FAILURE, "out of memory");
-	if ( debug == 0)
+	if (debug == 0)
 		if (daemon(0,0) < 0) 
 			exit_msg(EXIT_FAILURE, "daemon function failed");
-	if ( (lockfd=q_write_pidfile (queue)) < 0 ) 
+	if ((sdta._lock_fd=q_write_pidfile (queue)) < 0) 
 		exit_msg(EXIT_FAILURE, "could not write pid file\n");
 	RELINQUISH_PRIVS_ROOT(daemon_uid, daemon_gid);
 	
@@ -253,47 +376,48 @@ int sbs_daemon(const char* basename, const char* queue,
 	     (sigaction(SIGIO, &sa,NULL) < 0) ||
 	     (sigaction(SIGURG, &sa,NULL) < 0))
 		exit_msg(EXIT_FAILURE, "could not set signal handlers");
-	if ( (sfd=q_notify_init(basename,queue)) <0 )
+	if ( (sdta._notify_fd=q_notify_init(basename,queue)) <0 )
 		exit_msg(EXIT_FAILURE, "q_notify_init failed");
 
 	info_msg(SBS_VERSION);
 	info_msg("processing jobs between %02u:%02u and %02u:%02u",
 		 wtimes->_start_hour, wtimes->_start_min,
 		 wtimes->_end_hour, wtimes->_end_min);
-	info_msg("using %i workers at nice %i with a timeout of %u seconds",
-		 workernum, nicelvl,timeout);
+	info_msg("%i workers at nice %d while load average <= %.1f",
+		 sdta._workers, nicelvl, maxloadav);
+	info_msg("using a worker reactivation timeout of %d seconds",
+		 timeout);
 	/* start the main loop */
-	while (1) {
+	while (!done) {
 		struct timespec t;
+		struct timeval now;
 		struct siginfo sinfo;
-		int iret;
+		int sig;
 		t.tv_sec= timeout;
 		t.tv_nsec =0;
-		if ( check_work_times(wtimes) == 0)
-			sbs_run(basename, queue, nicelvl, 
-				pids,workernum);
-		iret = sigtimedwait(&sigm,&sinfo,&t);
-		if ( iret < 0 ) {
-			int i;
-			for (i=0;i<workernum;++i) {
-				if (pids[i]==-1)
-					pids[i]=0;
-			}
-			continue;
+		if ((check_times(&sdta,&now,&t)==0) &&
+		    (check_workers(&sdta,&now,jobs_avail,&t)==0)) {
+			jobs_avail=sbs_run(basename, queue, 
+					   nicelvl, maxloadav,
+					   sdta._pids,sdta._workers,
+					   sdta._notify_fd);
 		}
-		/* handle signals */
-		if ( (sinfo.si_signo == SIGIO) || 
-		     (sinfo.si_signo == SIGURG))  {
-			q_notify_handle(sfd);
-			info_msg("wakeup SIGIO/SIGURG"); 
-			continue; /* wakeup from sbsd_notify */
-		} else if (sinfo.si_signo == SIGCHLD) {
-			handle_childs(pids, workernum);
-			continue;
-		} else if ((sinfo.si_signo == SIGTERM) ||
-			   (sinfo.si_signo == SIGQUIT) ||
-			   (sinfo.si_signo == SIGINT)) {
-			break; /* terminate daemon */
+		sig = sigtimedwait(&sigm,&sinfo,&t);
+		switch (sig) {
+		case SIGIO:
+		case SIGURG:
+			q_notify_handle (sdta._notify_fd);
+			info_msg("job arrived");
+			jobs_avail=1;
+			break;
+		case SIGCHLD:
+			handle_childs(&sdta);
+			break;
+		case SIGTERM:
+		case SIGQUIT:
+		case SIGINT:
+			done =1;
+			break;
 		}
 	} 
 	info_msg("terminating");
@@ -326,12 +450,14 @@ static void usage(void)
 int main(int argc, char** argv)
 {
 	const char* queue=0;
+	char* p=0;
 	int nicelvl= 19;
 	int drun=0,dcreat=0,derase=0;
 	int c;
 	int timeout=120;
 	int workers=1;
 	int debug=0;
+	double loadav=(double)sysconf(_SC_NPROCESSORS_CONF);
 	struct work_times wtimes;
 	INIT_PRIVS();
 
@@ -341,7 +467,7 @@ int main(int argc, char** argv)
 	wtimes._start_min=0;
 	wtimes._end_min=0;
 
-	while ((c=getopt(argc, argv, "a:q:t:w:n:drceV")) != -1) {
+	while ((c=getopt(argc, argv, "a:q:t:l:w:n:drceV")) != -1) {
 		switch (c) {
 		case 'a':
 			switch( parse_work_times (optarg,&wtimes)) {
@@ -364,6 +490,12 @@ int main(int argc, char** argv)
 			timeout=atoi(optarg);
 			if ( timeout < 1 )
 				usage();
+			break;
+		case 'l': /* set max loadavg */
+			loadav= strtod(optarg,&p);
+			if ( *p != 0) {
+				usage();
+			}
 			break;
 		case 'w':
 			workers=atoi(optarg);
@@ -410,7 +542,8 @@ int main(int argc, char** argv)
 		openlog("sbsrun", LOG_PID, LOG_DAEMON);
 		ws = alloca(workers*sizeof(pid_t));
 		memset(ws,0,workers*sizeof(pid_t));
-		sbs_run(SBS_QUEUE_DIR, queue, nicelvl,ws,workers);
+		sbs_run(SBS_QUEUE_DIR, queue, nicelvl, loadav, 
+			ws, workers, -1);
 		closelog();
 		return 0;
 	}
@@ -432,7 +565,7 @@ int main(int argc, char** argv)
 		exit(3);
 	}
 	/* otherwise run the daemon */
-	sbs_daemon(SBS_QUEUE_DIR, queue, nicelvl, workers, 
+	sbs_daemon(SBS_QUEUE_DIR, queue, nicelvl, loadav, workers, 
 		   &wtimes,timeout,debug);
 	return 0;
 }

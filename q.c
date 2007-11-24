@@ -815,7 +815,8 @@ pid_t q_exec(const char* basedir, const char* queue,
 	     gid_t gid, 
 	     long jobno, 
 	     int niceval, 
-	     int workernum)
+	     int workernum,
+	     int notifyfd)
 {
 	/* 
 	 * Run a file by spawning off a process which redirects I/O,
@@ -853,7 +854,8 @@ pid_t q_exec(const char* basedir, const char* queue,
 			exit_msg(4,"cannot fork");
 		return pid;
 	}
-	
+	if (notifyfd>=0)
+		close(notifyfd);
 	/* change the signal mask, so one can terminate us */
 	sigfillset(&msk);
 	sigdelset(&msk,SIGTERM);

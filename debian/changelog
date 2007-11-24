@@ -1,3 +1,9 @@
+sbs (0.3.0) unstable; urgency=low
+
+  * version without fixed timeouts.
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Mon, 19 Nov 2007 22:01:40 +0100
+
 sbs (0.2.0) unstable; urgency=low
 
   * First version with sbs running as suid/sgid daemon and

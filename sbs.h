@@ -7,7 +7,7 @@
 #include <grp.h>
 #include <pwd.h>
 
-#define SBS_VERSION "simple batch system V-0.2.1"
+#define SBS_VERSION "simple batch system V-0.3.0"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0
@@ -78,6 +78,7 @@ extern pid_t q_exec(const char* basedir,
 		    uid_t uid, gid_t gid,
 		    long jobno,
 		    int nice, 
-		    int workernum);
+		    int workernum,
+		    int fd2close);
 
 #endif

@@ -214,7 +214,10 @@ void handle_childs(struct sbsd_data_s* d)
 		}
 		if ( ex ) {
 			int i;
- 			info_msg("child %i terminated with code %i", p ,rc);
+#if 0
+ 			info_msg("child %i terminated with code %i",  
+				 p ,rc); 
+#endif
 			for (i=0;i<d->_workers;++i) {
 				/* clean entry */
 				if (d->_pids[i]!=p) 
@@ -407,7 +410,9 @@ int sbs_daemon(const char* basename, const char* queue,
 		case SIGIO:
 		case SIGURG:
 			q_notify_handle (sdta._notify_fd);
-			info_msg("job arrived");
+#if 0
+			info_msg("job arrived"); 
+#endif
 			jobs_avail=1;
 			break;
 		case SIGCHLD:
@@ -434,7 +439,7 @@ static void usage(void)
 		"            T (1-..) the polling timeout in seconds ,\n"
 		"            W (1-32) the number of parallel jobs,\n"
 		"            N (1-19) the nice value of the workers and\n"
-		"            L (0...) the load average in the last 5 minutes\n"
+		"            L (0...) the load average in the last minute\n"
 		"            d a debug helper option\n"
 		"       sbsd [-q queue] [-w W] -r\n"
 		"            runs W jobs from the queue\n"
@@ -493,7 +498,7 @@ int main(int argc, char** argv)
 			break;
 		case 'l': /* set max loadavg */
 			loadav= strtod(optarg,&p);
-			if ( *p != 0) {
+			if ( (*p != 0) || (loadav<=0) ) {
 				usage();
 			}
 			break;

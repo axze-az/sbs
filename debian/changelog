@@ -1,8 +1,15 @@
+sbs (0.3.1) unstable; urgency=low
+
+  * Lesser informational messages. Update of the default configurations.
+    Check load average argument.
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 24 Nov 2007 16:00:00 +0100
+
 sbs (0.3.0) unstable; urgency=low
 
   * version without fixed timeouts.
 
- -- axel zeuner <axel.zeuner@gmx.de>  Mon, 19 Nov 2007 22:01:40 +0100
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 24 Nov 2007 16:00:00 +0100
 
 sbs (0.2.0) unstable; urgency=low
 

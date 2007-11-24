@@ -54,25 +54,6 @@ status_one()
     fi
 }
 
-# NICE WORKERS ACTIVE TIMEOUT
-build_args()
-{
-    SBS_ARGS=''
-    if [ -n "$1" ] ; then
-        SBS_ARGS="$SBS_ARGS -n $1"
-    fi
-    if [ -n "$2" ] ; then
-        SBS_ARGS="$SBS_ARGS -w $2"
-    fi
-    if [ -n "$3" ] ; then
-        SBS_ARGS="$SBS_ARGS -a $3"
-    fi
-    if [ -n "$4" ] ; then
-        SBS_ARGS="$SBS_ARGS -t $4"
-    fi
-    echo "$SBS_ARGS"
-}
-
 # $1 name of a configuration.
 start1()
 {
@@ -96,6 +77,9 @@ start1()
             fi
             if [ -n "$TIMEOUT" ] ; then
                 SBS_ARGS="$SBS_ARGS -t $TIMEOUT"
+            fi
+            if [ -n "$LOAD" ] ; then
+                SBS_ARGS="$SBS_ARGS -l $LOAD"
             fi
             start_one $QUEUE "$SBS_ARGS"
         else

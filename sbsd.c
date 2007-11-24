@@ -60,8 +60,7 @@ int sbs_run(const char* basename, const char* queue,
 				exit_msg(SBS_EXIT_FAILED,
 					 "cannot stat in %s/%s", 
 					 basename, queue);
-			/* We don't want directories
-			 */
+			/* We don't want directories */
 			if (!S_ISREG(buf.st_mode)) 
 				continue;
 			if (sscanf(dirent->d_name,"j%05lx",&jobno) != 1)
@@ -87,7 +86,7 @@ int sbs_run(const char* basename, const char* queue,
 			pids[i]=q_exec(basename, queue,
 				       batch_name, batch_uid, batch_gid,
 				       batch_jobno,nicelvl,i);
-			if (pids[i] >= 0)
+			if (pids[i] > 0)
 				--jobs;
 		} else {
 			break;

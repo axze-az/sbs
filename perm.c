@@ -40,26 +40,28 @@
 #include "privs.h"
 
 
-/* Structures and unions */
-
 /* Function declarations */
-
 static int check_for_user(FILE *fp,const char *name);
 
 /* Local functions */
 static int check_for_user(FILE *fp,const char *name)
 {
-	char buffer[4096];
-	size_t len=strlen(name);
+	char buffer[512];
 	int found = 0;
-	while(fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
-		if ((strncmp(name, buffer, len) == 0) &&
-		    ((buffer[len]=='\n') || (buffer[len]=='\0'))) {
-			found = 1;
-			break;
-		}
+	int c = '\n';
+	while ( !found && fgets(buffer, sizeof(buffer), fp) != NULL) {
+		size_t llen = strlen(buffer);
+		c = buffer[llen-1];
+		if (c == '\n')
+			buffer[llen-1] = '\0';
+		while (c != '\n' && c != EOF)
+			c = fgetc(fp);
+		found = (strcmp(buffer, name)==0);
 	}
 	fclose(fp);
+	if (c == EOF) {
+		warn_msg("incomplete last line.");
+	}
 	return found;
 }
 

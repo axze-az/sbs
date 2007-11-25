@@ -1,5 +1,6 @@
 #include "sbs.h"
 #include "privs.h"
+#include "perm.h"
 
 #include <signal.h>
 #include <stdlib.h>
@@ -155,6 +156,9 @@ int main(int argc, char** argv)
 		break;
 	}
 
+	if (!check_permission(queue))
+		exit_msg(SBS_EXIT_PRIVS_FAILED,
+			 "you do not have permission to use this program");
 	if (qj) {
 		FILE* f= stdin;
 		if (jobfile ) {

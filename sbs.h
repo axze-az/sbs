@@ -8,7 +8,7 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.3.2"
+#define SBS_VERSION "simple batch system V-0.3.3"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0

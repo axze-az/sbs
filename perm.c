@@ -1,4 +1,6 @@
 /* 
+ *  perm.c changed for sbs 
+ *  (C) 2007 Axel Zeuner
  *  perm.c - check user permission for at(1)
  *  Copyright (C) 1994  Thomas Koenig
  *
@@ -23,11 +25,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-/* System Headers */
-
 #include <sys/types.h>
-#include <err.h>
+#include <limits.h>
 #include <errno.h>
 #include <pwd.h>
 #include <stddef.h>
@@ -36,15 +35,10 @@
 #include <string.h>
 #include <unistd.h>
 
-/* Local headers */
-
 #include "sbs.h"
 #include "perm.h"
 #include "privs.h"
 
-/* Macros */
-
-#define MAXUSERID 10
 
 /* Structures and unions */
 
@@ -53,70 +47,91 @@
 static int check_for_user(FILE *fp,const char *name);
 
 /* Local functions */
-
 static int check_for_user(FILE *fp,const char *name)
 {
-	char *buffer;
-	size_t len;
+	char buffer[4096];
+	size_t len=strlen(name);
 	int found = 0;
-
-	len = strlen(name);
-	if ((buffer = malloc(len+2)) == NULL)
-		exit_msg(SBS_EXIT_PRIVS_FAILED, "virtual memory exhausted");
-
-	while(fgets(buffer, len+2, fp) != NULL)
-	{
+	while(fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
 		if ((strncmp(name, buffer, len) == 0) &&
-		    (buffer[len] == '\n'))
-		{
+		    ((buffer[len]=='\n') || (buffer[len]=='\0'))) {
 			found = 1;
 			break;
 		}
 	}
 	fclose(fp);
-	free(buffer);
 	return found;
 }
+
+static FILE* open_allow(const char* queue)
+{
+	char buf[PATH_MAX];
+	FILE* f=0;
+	if ( snprintf(buf, sizeof(buf), PERM_PATH "/sbs-%s.allow", queue)>=
+	     (int)sizeof(buf))
+		exit_msg(SBS_EXIT_PRIVS_FAILED, "buffer too short");
+	PRIV_START();
+	f = fopen(buf,"r");
+	if ( f == 0) {
+		f= fopen(PERM_PATH "/sbs.allow", "r");
+	}
+	PRIV_END();
+	return f;
+}
+
+static FILE* open_deny(const char* queue)
+{
+	char buf[PATH_MAX];
+	FILE* f=0;
+	if ( snprintf(buf, sizeof(buf), PERM_PATH "/sbs-%s.deny", queue)>=
+	     (int)sizeof(buf))
+		exit_msg(SBS_EXIT_PRIVS_FAILED, "buffer too short");
+	PRIV_START(); 
+	f = fopen(buf,"r");
+	if ( f == 0) {
+		f= fopen(PERM_PATH "/sbs.deny", "r");
+	}
+	PRIV_END();
+	return f;
+}
+
 /* Global functions */
-int check_permission(void)
+int check_permission(const char* queue)
 {
 	FILE *fp;
 	uid_t uid = geteuid();
 	struct passwd *pentry;
+	int res=0;
 
-	if (uid==0)
+	/* root and owner have access to sbs */
+	if ((uid==0) || (uid==daemon_uid))
 		return 1;
 
 	if ((pentry = getpwuid(uid)) == NULL)
 		exit_msg(SBS_EXIT_PRIVS_FAILED, "cannot access user database");
 
-	PRIV_START();
-
-	fp=fopen(PERM_PATH "sbs.allow","r");
-
-	PRIV_END();
-
-	if (fp != NULL)
-	{
-		return check_for_user(fp, pentry->pw_name);
-	}
-	else if (errno == ENOENT)
-	{
-		
-		PRIV_START();
-			
-		fp=fopen(PERM_PATH "sbs.deny", "r");
-		
-		PRIV_END();
-
-		if (fp != NULL)
-		{
-			return !check_for_user(fp, pentry->pw_name);
+	/* open sbs-queue.allow or sbs.allow. if one of these files exists
+	   the user must listed in first existing of these files */
+	fp = open_allow(queue);
+	if ( fp != 0 ) {
+		res = check_for_user(fp, pentry->pw_name);
+	} else if ( errno == ENOENT ) {
+		/* if sbs-queue.deny or sbs.deny exists, the user may
+		   not listed in the first of these files */
+		fp =  open_deny(queue);
+		if (fp !=0) {
+			res= !check_for_user(fp, pentry->pw_name);
+		} else if ( errno != ENOENT) {
+			warn_msg("neither %s/sbs-%s.deny nor "
+				 "%s/sbs.deny exist",
+				 PERM_PATH,queue, PERM_PATH);
+		} else {
+			exit_msg(SBS_EXIT_PRIVS_FAILED, 
+				 "cannot access deny files");
 		}
-		else if (errno != ENOENT)
-			warn_msg("sbs.deny");
+	} else {
+		exit_msg(SBS_EXIT_PRIVS_FAILED, 
+			 "cannot access allow files");
 	}
-	else
-		warn_msg("sbs.allow");
-	return 0;
+	return res;
 }

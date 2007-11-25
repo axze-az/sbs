@@ -1,4 +1,7 @@
 /* 
+ *  perm.h - header for sbs(1)
+ *  Copyright (C) 2007 Axel Zeuner
+ *
  *  perm.h -  header for at(1)
  *  Copyright (C) 1994  Thomas Koenig
  *
@@ -24,5 +27,10 @@
  *
  * $FreeBSD: src/usr.bin/at/perm.h,v 1.4 2001/12/02 12:26:18 markm Exp $
  */
+#if !defined (__PERM_H__)
+#define __PERM_H__ 1
 
-int check_permission(void);
+
+extern int check_permission(const char* queue);
+
+#endif /* __PERM_H__ */

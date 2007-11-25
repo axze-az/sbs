@@ -48,7 +48,7 @@ SBSD_O=sbsd.o privs.o q.o pipedsig.o
 sbsd: $(SBSD_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBSD_O) 
 
-SBS_O=sbs.o q.o privs.o
+SBS_O=sbs.o q.o privs.o perm.o
 sbs: $(SBS_O)
 	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
 

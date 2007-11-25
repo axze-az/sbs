@@ -94,9 +94,11 @@ start1()
 start() 
 {
     if [ -z "$1" ] ; then
+	echo "starting the simple batch system"
         for i in $CONFIG_PATH/*.conf ; do
             start1 `basename $i .conf` 
         done
+	echo "done."
     else
         start1 $1
     fi
@@ -122,9 +124,11 @@ stop1()
 stop() 
 {
     if [ -z "$1" ] ; then
+	echo "stopping the simple batch system"
         for i in $CONFIG_PATH/*.conf ; do
             stop1 `basename $i .conf` 
         done
+	echo "done."
     else
         stop1 $1
     fi

@@ -987,8 +987,8 @@ pid_t q_exec(const char* basedir, const char* queue,
 			O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR)) < 0)
 		exit_msg(SBS_EXIT_EXEC_FAILED,"cannot create output file");
 	snprintf(subject,sizeof(subject),
-		 "Subject: job sbs/default/%ld output\n", 
-		 jobno);
+		 "Subject: job sbs/%s/%ld output\n", 
+		 queue,jobno);
 	write(fd_out,subject,strlen(subject));
 	write(fd_out,"To: ",3);
 	write(fd_out,mailname,strlen(mailname));

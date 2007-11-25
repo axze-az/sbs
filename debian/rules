@@ -15,8 +15,7 @@
 configure: configure-stamp
 configure-stamp:
 	dh_testdir
-	# Add here commands to configure the package.
-
+# Add here commands to configure the package.
 	touch configure-stamp
 
 
@@ -25,9 +24,9 @@ build: build-stamp
 build-stamp: configure-stamp 
 	dh_testdir
 
-	# Add here commands to compile the package.
+# Add here commands to compile the package.
 	$(MAKE) PREFIX=""
-	#docbook-to-man debian/sbs.sgml > sbs.1
+# docbook-to-man debian/sbs.sgml > sbs.1
 
 	touch $@
 
@@ -36,9 +35,10 @@ clean:
 	dh_testroot
 	rm -f build-stamp configure-stamp
 
-	# Add here commands to clean up after the build process.
+# Add here commands to clean up after the build process.
 	$(MAKE) clean
 	$(RM) $(CURDIR)/debian/init.d
+	$(RM) $(CURDIR)/debian/sbs.pam
 	dh_clean 
 
 install: build
@@ -47,9 +47,11 @@ install: build
 	dh_clean -k 
 	dh_installdirs
 
-	# Add here commands to install the package into debian/sbs.
+# Add here commands to install the package into debian/sbs.
 	$(MAKE) DESTDIR=$(CURDIR)/debian/sbs PREFIX="" install
 	cp $(CURDIR)/sbs.init $(CURDIR)/debian/init.d
+	cp $(CURDIR)/sbs.pam $(CURDIR)/debian
+
 
 # Build architecture-independent files here.
 binary-indep: build install
@@ -67,7 +69,7 @@ binary-arch: build install
 #	dh_installdebconf	
 #	dh_installlogrotate
 #	dh_installemacsen
-#	dh_installpam
+	dh_installpam
 #	dh_installmime
 #	dh_python
 	dh_installinit

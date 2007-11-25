@@ -18,6 +18,7 @@ MAIL=/usr/sbin/sendmail
 
 # No pam for now -DPAM=1
 DEFS= \
+-DPAM=1 \
 -D_GNU_SOURCE=1 \
 -DMAIL_CMD=\"${MAIL}\" \
 -DPERM_PATH=\"${PERM_PATH}\" \
@@ -35,7 +36,7 @@ OPT=-O2 -Wunused -ffunction-sections -fdata-sections
 STRIP=-s
 LD=$(CC) $(STRIP)
 CFLAGS=$(STRIP) $(OPT) $(DEFS) -I. $(WARN)
-LDFLAGS=$(STRIP) -L.
+LDFLAGS=$(STRIP) -L. -lpam
 ARFLAGS=rv
 
 all: progs 

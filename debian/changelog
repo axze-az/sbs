@@ -1,3 +1,9 @@
+sbs (0.3.4) unstable; urgency=low
+
+  * use allow and deny files in sbs.
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 25 Nov 2007 15:16:00 +0100
+
 sbs (0.3.3) unstable; urgency=low
 
   * use allow and deny files in sbs.

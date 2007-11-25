@@ -8,7 +8,7 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.3.3"
+#define SBS_VERSION "simple batch system V-0.3.4"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0
@@ -29,6 +29,7 @@
 #define SBS_EXIT_JOB_LOCK_FAILED	33
 #define SBS_EXIT_EXEC_FAILED		34
 #define SBS_EXIT_PRIVS_FAILED		35
+#define SBS_EXIT_PAM_FAILED		36
 
 #define SBS_JOB_QUEUED		1
 #define SBS_JOB_ACTIVE		2

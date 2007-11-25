@@ -23,6 +23,10 @@
 #include <ctype.h>
 #include <wait.h>
 
+#if defined (PAM)
+#include <security/pam_appl.h>
+#endif
+
 #if !defined (LOGNAMESIZE)
 #define LOGNAMESIZE UT_NAMESIZE+2
 #endif
@@ -865,8 +869,9 @@ pid_t q_exec(const char* basedir, const char* queue,
 #ifdef PAM
 	pam_handle_t *pamh = NULL;
 	int pam_err;
-	struct pam_conv pamc = {
-		.conv = openpam_nullconv,
+	char pam_app[256];
+	struct pam_conv pamconv = {
+		.conv = NULL,
 		.appdata_ptr = NULL
 	};
 #endif
@@ -908,18 +913,47 @@ pid_t q_exec(const char* basedir, const char* queue,
 			 "Userid %lu not found - aborting job %s",
 			 (unsigned long) uid, filename);
 #ifdef PAM
+	if ( snprintf(pam_app,sizeof(pam_app),"sbs-%s", queue) >=
+	     (int)sizeof(pam_app)) {
+		exit_msg(SBS_EXIT_PAM_FAILED,
+			 "queue %s: name too long");
+	}
 	PRIV_START();
-	pam_err = pam_start(atrun, pentry->pw_name, &pamc, &pamh);
+	pam_err = pam_start(pam_app, pentry->pw_name, &pamconv, &pamh);
+	/* if we have no config for queue, use the global one */
 	if (pam_err != PAM_SUCCESS)
-		perrx("cannot start PAM: %s", pam_strerror(pamh, pam_err));
+		pam_err = pam_start("sbs", pentry->pw_name, &pamconv, &pamh);
+	if (pam_err != PAM_SUCCESS)
+		exit_msg(SBS_EXIT_PAM_FAILED,
+			"cannot start PAM: %s", pam_strerror(pamh, pam_err));
 	pam_err = pam_acct_mgmt(pamh, PAM_SILENT);
 	/* Expired password shouldn't prevent the job from running. */
-	if (pam_err != PAM_SUCCESS && pam_err != PAM_NEW_AUTHTOK_REQD)
-		perrx("Account %s (userid %lu) unavailable for job %s: %s",
-		      pentry->pw_name, (unsigned long)uid,
-		      filename, pam_strerror(pamh, pam_err));
-
-	pam_end(pamh, pam_err);
+	if (pam_err != PAM_SUCCESS && pam_err != PAM_NEW_AUTHTOK_REQD) {
+		warn_msg("Account %s (userid %lu) unavailable "
+			 "for job %s/%d: %s",
+			 pentry->pw_name, (unsigned long)uid,
+			 queue, jobno, pam_strerror(pamh, pam_err));
+		pam_end(pamh, pam_err);
+		exit_msg(SBS_EXIT_PAM_FAILED,"pam failure");
+	}
+	pam_err = pam_open_session(pamh, PAM_SILENT);
+	if (pam_err != PAM_SUCCESS) {
+		warn_msg("Acount %s (userid %lu) no open session "
+			 "for job %s/%d: %s",
+			 pentry->pw_name, (unsigned long)uid,
+			 queue, jobno, pam_strerror(pamh, pam_err));
+		pam_end(pamh, pam_err);
+		exit_msg(SBS_EXIT_PAM_FAILED,"pam failure");
+	}
+	pam_err = pam_setcred(pamh, PAM_ESTABLISH_CRED | PAM_SILENT);
+	if (pam_err != PAM_SUCCESS) {
+		warn_msg("Acount %s (userid %lu) no credentials "
+			 "for job %s/%d: %s",
+			 pentry->pw_name, (unsigned long)uid,
+			 queue, jobno, pam_strerror(pamh, pam_err));
+		pam_end(pamh, pam_err);
+		exit_msg(SBS_EXIT_PAM_FAILED,"pam failure");
+	}
 	PRIV_END();
 #endif /* PAM */
 
@@ -1060,6 +1094,14 @@ pid_t q_exec(const char* basedir, const char* queue,
 	close(fd_in);
 	/* close(fd_out); */
 	waitpid(pid, (int *) NULL, 0);
+
+#ifdef PAM
+	PRIV_START();
+	pam_setcred(pamh, PAM_DELETE_CRED | PAM_SILENT);
+        pam_err = pam_close_session(pamh, PAM_SILENT);
+        pam_end(pamh, pam_err);
+	PRIV_END();
+#endif
     
 	gettimeofday(&endtime, NULL);
 	info_msg("job %s/%ld done", queue, jobno);

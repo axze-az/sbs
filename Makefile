@@ -31,12 +31,12 @@ DEFS= \
 
 CC=gcc
 CXX=g++
-WARN=-Wall -Werror -W
-OPT=-O2 -Wunused -ffunction-sections -fdata-sections 
+WARN=-Wall -Werror -W -Wunused
+OPT=-O3 -fexpensive-optimizations  -ffunction-sections -fdata-sections 
 STRIP=-s
 LD=$(CC) $(STRIP)
 CFLAGS=$(STRIP) $(OPT) $(DEFS) -I. $(WARN)
-LDFLAGS=$(STRIP) -L. -lpam
+LDFLAGS= -L. -lsbs -lpam 
 ARFLAGS=rv
 
 all: progs 
@@ -45,20 +45,24 @@ PROGS= sbsd sbs sbs-list-queues
 SCRIPTS= sbs-clear-queue
 progs: $(PROGS) $(SCRIPTS)
 
-SBSD_O=sbsd.o privs.o q.o pipedsig.o
-sbsd: $(SBSD_O)
-	$(LD) $(LDFLAGS) -o $@ $(SBSD_O) 
+LIBSBS_O=privs.o q.o perm.o
+libsbs.a: $(LIBSBS_O)
+	$(AR) rv $@ $(LIBSBS_O)
 
-SBS_O=sbs.o q.o privs.o perm.o
-sbs: $(SBS_O)
-	$(LD) $(LDFLAGS) -o $@ $(SBS_O)
+SBSD_O=sbsd.o
+sbsd: $(SBSD_O) libsbs.a
+	$(LD) -o $@ $(SBSD_O) $(LDFLAGS)  
+
+SBS_O=sbs.o 
+sbs: $(SBS_O) libsbs.a
+	$(LD) -o $@ $(SBS_O) $(LDFLAGS) 
 
 sbs-list-queues: sbs-list-queues.in
 	cat $< | sed s^SBS_CFG_PATH_IN^SBS_CFG_PATH\=\"${PERM_PATH}\"^ >$@
 	chmod +x $@
 
 clean:
-	-$(RM) *.o $(PROGS) sbs.cron
+	-$(RM) *.o $(PROGS) sbs.cron libsbs.a
 
 install: all 
 	mkdir -p ${IROOT}/${BIN_DIR}

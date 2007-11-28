@@ -1,0 +1,75 @@
+.\" Process this file with 
+.\" groff -man -Tascii sbsd.man
+.\" 
+.TH sbsd 8 "DEC 2007" "sbsd"
+.SH NAME
+sbsd \- simple batch system daemon runs jobs from a queue or creates a queue
+.SH SYNOPSIS
+.P
+.B sbsd -q queue [-t T] [-w W] [-a A][-d] [-n N] [-l L]
+.P
+.B sbsd -q queue [-w W] [-l L] -r 
+.P
+.B sbsd -q queue -c
+.SH DESCRIPTION
+.B sbsd 
+runs jobs queued by 
+.B sbs(1) -q queue 
+or creates a queue.
+.SH OPTIONS
+.TP 
+.B -q " queue"
+specifies the sbsd queue to run on,
+.TP 
+.B -w " W"
+determines the count of parallel active jobs. The default value is 1.
+.TP 
+.B -t " T"
+adjustes the polling interval in seconds for trying to start workers if
+there are workers left from an already terminated sbsd daemon on the
+same queue.
+.TP 
+.B -a " A"
+activity interval of the queue, defaults to "00:00-24:00", i.e. the
+queue is always ready to process jobs.
+.TP
+.B -n " N"
+nice level of the started jobs. The default nice level is 19. Values
+below zero are not supported.
+.TP
+.B -l " L"
+determines the load average threshold. No jobs are started if the load
+average of the system in the last minute was greater than this
+threshold.
+.TP
+.B -d 
+don't detach from terminal (default is to detach and run in the background).
+.TP
+.B -c 
+creates a new queue.
+.TP
+.B -r 
+execute a maximum of allowed workers jobs once.
+
+.SH WARNING
+.B sbsd 
+won't  work  if  its  spool  directory  is mounted via NFS even if
+no_root_squash is set.
+
+.SH FILES
+.I /var/spool/sbs
+The directory for creating queues.
+.P
+.I /etc/sbs 
+The directory containing the configuration files. 
+
+.SH SEE ALSO
+.BR sbs (1)
+.BR sbs.conf (4),  
+
+
+.SH AUTHOR
+Dr. Axel Zeuner <axel dot zeuner at gmx de> using sources from
+at/atrun of FreeBSD and ideas from at/atd.
+
+

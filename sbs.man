@@ -1,0 +1,66 @@
+.\" Process this file with 
+.\" groff -man -Tascii sbsd.man
+.\" 
+.TH sbs 1 "DEC 2007" "sbs"
+.SH NAME
+sbs \- queue, examine or delete simple batch system jobs for later
+execution
+.SH SYNOPSIS
+.P
+.B sbs -q queue [-f file] [-m]
+.P
+.B sbs -q queue -c job 
+.P
+.B sbs -q queue -d job 
+.P
+.B sbs -q queue -l
+.P
+.B sbs -V
+.SH DESCRIPTION
+.B sbs 
+queues, examines or deletes simple batch system jobs for later execution
+by 
+.B sbsd (8)
+.
+.SH OPTIONS
+.TP 
+.B -q " queue"
+specifies the sbs queue to work on.
+.TP 
+.B -f " file"
+reads the job command from file instead from standard input.
+.TP
+.B -m 
+requests delivery of a mail after job execution even without job output.
+.TP 
+.B -c " job"
+catalogs the job.
+.TP 
+.B -d " job"
+deletes the job.
+.TP
+.B -V
+prints the version of sbs.
+
+.SH BUGS
+.B sbs 
+may block the job execution in a queue if stopped by an external signal.
+
+.SH FILES
+.I /var/spool/sbs
+The directory for creating queues.
+.P
+.I /etc/sbs 
+The directory containing the configuration files. 
+
+.SH SEE ALSO
+.BR sbsd (8),
+.BR sbs.conf (4),  
+.BR sbs-list-queues (1),
+.BR sbs-clear-queue (1)
+
+.SH AUTHOR
+Dr. Axel Zeuner <axel dot zeuner at gmx de> using sources from
+at/atrun of FreeBSD and ideas from at/atd.
+
+

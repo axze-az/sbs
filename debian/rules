@@ -39,6 +39,7 @@ clean:
 	$(MAKE) clean
 	$(RM) $(CURDIR)/debian/init.d
 	$(RM) $(CURDIR)/debian/sbs.pam
+	$(RM) $(CURDIR)/debian/*.man
 	dh_clean 
 
 install: build
@@ -51,7 +52,7 @@ install: build
 	$(MAKE) DESTDIR=$(CURDIR)/debian/sbs PREFIX="" install
 	cp $(CURDIR)/sbs.init $(CURDIR)/debian/init.d
 	cp $(CURDIR)/sbs.pam $(CURDIR)/debian
-
+	cp $(CURDIR)/*.man $(CURDIR)/debian
 
 # Build architecture-independent files here.
 binary-indep: build install
@@ -75,7 +76,7 @@ binary-arch: build install
 	dh_installinit
 #	dh_installcron 
 #	dh_installinfo
-	dh_installman
+	dh_installman *.man
 	dh_link
 	dh_strip
 	dh_compress

@@ -14,7 +14,7 @@ sbsd \- simple batch system daemon runs jobs from a queue or creates a queue
 .SH DESCRIPTION
 .B sbsd 
 runs jobs queued by 
-.B sbs(1) -q queue 
+.B sbs (1) -q queue 
 or creates a queue.
 .SH OPTIONS
 .TP 

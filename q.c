@@ -69,6 +69,16 @@ int exit_msg(int code, const char* fmt, ...)
 	exit(code);
 }
 
+int err_msg(const char* fmt, ...)
+{
+	va_list va;
+	int r;
+	va_start(va,fmt);
+	r= msg_va(LOG_ERR, fmt, va);
+	va_end(va);
+	return r;
+}
+
 int warn_msg(const char* fmt, ...)
 {
 	va_list va;

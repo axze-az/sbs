@@ -1,0 +1,51 @@
+.\" Process this file with 
+.\" groff -man -Tascii sbsd.man
+.\" 
+.TH sbs.conf 5 "DEC 2007" "sbs.conf"
+.SH NAME
+Simple batch system (sbs) configuration.
+
+.SH DESCRIPTION
+The simple batch systems runs queues similiar to 
+.B at (1)
+and
+.B atd (8)
+ .
+Queues are created by 
+.B sbsd -c -q queue
+\.
+Every queue requires one running instance of 
+.B sbsd (8).
+
+
+
+.SH FILES
+.I /var/spool/sbs
+The directory for creating queues. Queues created by 
+.B sbsd -c -q queue
+are created in this directory. 
+.P
+Every queue consist of a directory with the same
+name as the queue with the two sub directories
+.P
+.I jobs
+with owner daemon group daemon and mode 1770 containing the spooled jobs and
+.P
+.I spool
+with owner daemon group daemon and mode 1770 containing the spool
+files required by running jobs.
+.P
+.I /etc/sbs 
+The directory containing the configuration files. 
+
+.SH SEE ALSO
+.BR sbsd (8),
+.BR sbs (1),  
+.BR sbs-list-queues (1),
+.BR sbs-clear-queue (1)
+
+.SH AUTHOR
+Dr. Axel Zeuner <axel dot zeuner at gmx de> using sources from
+at/atrun of FreeBSD and ideas from at/atd.
+
+

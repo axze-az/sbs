@@ -19,7 +19,7 @@ main()
 	if [ -f $i ] ; then
 	    QUEUE=''
 	    source $i
-	    echo "queue $QUEUE"
+	    echo "#queue $QUEUE"
 	    sbs -l -q $QUEUE 2>/dev/null
 	fi
     done

@@ -1,4 +1,5 @@
 #include "sbs.h"
+#include "msg.h"
 #include "privs.h"
 #include "perm.h"
 

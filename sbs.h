@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <stdarg.h>
 #include <grp.h>
 #include <pwd.h>
 #include <signal.h>
@@ -34,15 +33,6 @@
 #define SBS_JOB_QUEUED		1
 #define SBS_JOB_ACTIVE		2
 #define SBS_JOB_DONE		3
-
-extern int daemonized;
-extern int msg_va(int prio, const char* fmt, va_list va);
-extern int msg(int prio, const char* fmt, ...);
-
-extern int exit_msg(int code, const char* fmt, ...) __attribute__((noreturn));
-extern int err_msg(const char* fmt, ...);
-extern int warn_msg(const char* fmt, ...);
-extern int info_msg(const char* fmt, ...);
 
 extern int q_cd_dir(const char* basedir, const char* qname);
 extern int q_cd_job_dir(const char* basedir, const char* qname);

@@ -3,6 +3,7 @@
 #include <grp.h>
 
 #include "privs.h"
+#include "msg.h"
 #include "sbs.h"
 
 uid_t real_uid, effective_uid, daemon_uid=(uid_t)-3; 

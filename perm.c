@@ -38,7 +38,7 @@
 #include "sbs.h"
 #include "perm.h"
 #include "privs.h"
-
+#include "msg.h"
 
 /* Function declarations */
 static int check_for_user(FILE *fp,const char *name);

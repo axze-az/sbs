@@ -65,7 +65,7 @@ The directory containing the configuration files.
 
 .SH SEE ALSO
 .BR sbs (1),
-.BR sbs.conf (4)
+.BR sbs.conf (5)
 
 
 .SH AUTHOR

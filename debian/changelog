@@ -1,6 +1,12 @@
+sbs (0.3.5) unstable; urgency=low
+
+  * update man pages.
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sun, 09 Dec 2007 17:00:00 +0100
+
 sbs (0.3.4) unstable; urgency=low
 
-  * use allow and deny files in sbs.
+  * use pam support. first usable version.
 
  -- axel zeuner <axel.zeuner@gmx.de>  Sat, 25 Nov 2007 15:16:00 +0100
 

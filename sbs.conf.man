@@ -9,15 +9,46 @@ Simple batch system (sbs) configuration.
 The simple batch systems runs queues similiar to 
 .B at (1)
 and
-.B atd (8)
- .
+.B atd (8).
 Queues are created by 
-.B sbsd -c -q queue
-\.
+.B sbsd -c -q QUEUE .
 Every queue requires one running instance of 
 .B sbsd (8).
-
-
+.P
+.B sbsd (8)
+uses PAM to check if execution of jobs is allowed. 
+.P
+.B sbs (1) -q QUEUE 
+checks the files 
+.I /etc/sbs/sbs-QUEUE.allow
+or 
+.I /etc/sbs/sbs.allow
+and
+.I /etc/sbs/sbs-QUEUE.deny 
+or 
+.I /etc/sbs/sbs.deny.
+.P
+The format of the files is a list of usernames, one on each line.
+Whitespace is not permitted.
+.P
+If
+.I /etc/sbs/sbs-QUEUE.allow 
+or 
+.I /etc/sbs/sbs.allow exist
+, only users mentioned in the first file found are allowed to use
+.B sbs -q QUEUE.
+.P
+If neither 
+.I /etc/sbs/sbs-QUEUE.allow 
+nor 
+.I /etc/sbs/sbs.allow exist
+.I /etc/sbs/sbs-QUEUE.deny 
+or 
+.I /etc/sbs/sbs.deny 
+are checked using the file first found.
+.P
+The superuser and the user owning sbs may always use 
+.B sbs.
 
 .SH FILES
 .I /var/spool/sbs
@@ -26,7 +57,7 @@ The directory for creating queues. Queues created by
 are created in this directory. 
 .P
 Every queue consist of a directory with the same
-name as the queue with the two sub directories
+name as given during creation with the two sub directories:
 .P
 .I jobs
 with owner daemon group daemon and mode 1770 containing the spooled jobs and
@@ -40,9 +71,7 @@ The directory containing the configuration files.
 
 .SH SEE ALSO
 .BR sbsd (8),
-.BR sbs (1),  
-.BR sbs-list-queues (1),
-.BR sbs-clear-queue (1)
+.BR sbs (1)
 
 .SH AUTHOR
 Dr. Axel Zeuner <axel dot zeuner at gmx de> using sources from

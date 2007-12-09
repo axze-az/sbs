@@ -55,9 +55,7 @@ The directory containing the configuration files.
 
 .SH SEE ALSO
 .BR sbsd (8),
-.BR sbs.conf (4),  
-.BR sbs-list-queues (1),
-.BR sbs-clear-queue (1)
+.BR sbs.conf (5)
 
 .SH AUTHOR
 Dr. Axel Zeuner <axel dot zeuner at gmx de> using sources from

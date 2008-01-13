@@ -824,6 +824,9 @@ pid_t q_exec(const char* basedir, const char* queue,
 		.appdata_ptr = NULL
 	};
 #endif
+	struct rusage rus;
+	/* centi secs */
+	long rus_user, rus_sys, rus_elapsed, rus_cpu;
 
 	pid = fork();
 	if ( pid != 0) {
@@ -1051,9 +1054,25 @@ pid_t q_exec(const char* basedir, const char* queue,
         pam_end(pamh, pam_err);
 	PRIV_END();
 #endif
-    
+	/* book keeping */
 	gettimeofday(&endtime, NULL);
-	info_msg("job %s/%ld done", queue, jobno);
+	getrusage(RUSAGE_CHILDREN,&rus);
+	rus_user = rus.ru_utime.tv_sec *100 + rus.ru_utime.tv_usec/(10*1000);
+	rus_sys = rus.ru_stime.tv_sec *100 + rus.ru_stime.tv_usec/(10*1000);
+	rus_elapsed = endtime.tv_sec *100 + endtime.tv_usec/(10*1000);
+	rus_elapsed-= starttime.tv_sec *100 + starttime.tv_usec/(10*1000);
+	rus_cpu = rus_elapsed ? (100*(rus_user + rus_sys))/rus_elapsed : 0;
+	info_msg("job %s/%ld done "
+		 "%ld.%02lduser %ld.%02ldsystem "
+		 "%ld:%02ld.%02ldelapsed "
+		 "%ld%%CPU",
+		 queue, jobno,
+		 rus_user/100, rus_user % 100, 
+		 rus_sys/100, rus_sys/100, 
+		 rus_elapsed/(100*60), 
+		 rus_elapsed%(60*100)/100, 
+		 (rus_elapsed%(60*100))%100,
+		 rus_cpu);
 
 	/* Send mail.  Unlink the output file first, so it is deleted after
 	 * the run.
@@ -1070,31 +1089,19 @@ pid_t q_exec(const char* basedir, const char* queue,
 	if ((buf.st_size != size) || send_mail)	{    
 		stream = fdopen(fd_out,"a");
 		if ( stream ) {
-			struct rusage rus;
-			// centi secs
-			long user, sys, elapsed, cpu;
-			getrusage(RUSAGE_CHILDREN,&rus);
-			user = rus.ru_utime.tv_sec *100 + 
-				rus.ru_utime.tv_usec/(10*1000);
-			sys = rus.ru_stime.tv_sec *100 + 
-				rus.ru_stime.tv_usec/(10*1000);
-			elapsed = endtime.tv_sec *100 + 
-				endtime.tv_usec/(10*1000);
-			elapsed-= starttime.tv_sec *100 + 
-				starttime.tv_usec/(10*1000);
-			cpu = elapsed ? (100*(user + sys))/elapsed : 0;
 			fprintf(stream, 
 				"-----------------------------------"
 				"-----------------------------------\n"
-				"Ressource usage:\n"
+				"Ressource usage: "
 				"%ld.%02lduser %ld.%02ldsystem "
 				"%ld:%02ld.%02ldelapsed "
 				"%ld%%CPU\n",
-				user/100, user % 100, sys/100, sys/100, 
-				elapsed/(100*60), 
-				elapsed%(60*100)/100, 
-				(elapsed%(60*100))%100,
-				cpu);
+				rus_user/100, rus_user % 100, 
+				rus_sys/100, rus_sys/100, 
+				rus_elapsed/(100*60), 
+				rus_elapsed%(60*100)/100, 
+				(rus_elapsed%(60*100))%100,
+				rus_cpu);
 			fflush(stream);
 		}
 		close(fd_out);

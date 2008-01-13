@@ -868,7 +868,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 	if ( snprintf(pam_app,sizeof(pam_app),"sbs-%s", queue) >=
 	     (int)sizeof(pam_app)) {
 		exit_msg(SBS_EXIT_PAM_FAILED,
-			 "queue %s: name too long");
+			 "queue %s: name too long", queue);
 	}
 	PRIV_START();
 	pam_err = pam_start(pam_app, pentry->pw_name, &pamconv, &pamh);
@@ -882,7 +882,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 	/* Expired password shouldn't prevent the job from running. */
 	if (pam_err != PAM_SUCCESS && pam_err != PAM_NEW_AUTHTOK_REQD) {
 		warn_msg("Account %s (userid %lu) unavailable "
-			 "for job %s/%d: %s",
+			 "for job %s/%ld: %s",
 			 pentry->pw_name, (unsigned long)uid,
 			 queue, jobno, pam_strerror(pamh, pam_err));
 		pam_end(pamh, pam_err);
@@ -891,7 +891,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 	pam_err = pam_open_session(pamh, PAM_SILENT);
 	if (pam_err != PAM_SUCCESS) {
 		warn_msg("Acount %s (userid %lu) no open session "
-			 "for job %s/%d: %s",
+			 "for job %s/%ld: %s",
 			 pentry->pw_name, (unsigned long)uid,
 			 queue, jobno, pam_strerror(pamh, pam_err));
 		pam_end(pamh, pam_err);
@@ -900,7 +900,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 	pam_err = pam_setcred(pamh, PAM_ESTABLISH_CRED | PAM_SILENT);
 	if (pam_err != PAM_SUCCESS) {
 		warn_msg("Acount %s (userid %lu) no credentials "
-			 "for job %s/%d: %s",
+			 "for job %s/%ld: %s",
 			 pentry->pw_name, (unsigned long)uid,
 			 queue, jobno, pam_strerror(pamh, pam_err));
 		pam_end(pamh, pam_err);

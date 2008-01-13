@@ -1,3 +1,9 @@
+sbs (0.3.6) unstable; urgency=low
+
+  * print the resource usage of the jobs into the system log.
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sun, 13 Jan 2008 17:00:00 +0100
+	
 sbs (0.3.5) unstable; urgency=low
 
   * update man pages.

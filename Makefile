@@ -31,7 +31,7 @@ DEFS= \
 
 CC=gcc
 CXX=g++
-WARN=-Wall -Werror -W -Wunused
+WARN=-Wall -Werror -W -Wunused -Wall
 OPT=-O3 -fexpensive-optimizations  -ffunction-sections -fdata-sections 
 STRIP=-s
 LD=$(CC) $(STRIP)

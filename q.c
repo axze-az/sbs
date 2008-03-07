@@ -1080,7 +1080,9 @@ pid_t q_exec(const char* basedir, const char* queue,
 	stat(filename, &buf);
 	PRIV_START();
 	if (open(filename, O_RDONLY) != STDIN_FILENO)
-		exit_msg(SBS_EXIT_EXEC_FAILED,"reopen of output failed");
+		exit_msg(SBS_EXIT_EXEC_FAILED,
+			 "reopen of output (%s) failed with %s", 
+			 filename, strerror(errno));
 	unlink(filename);
 	PRIV_END();
 	/* switch back to job dir */

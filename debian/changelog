@@ -1,3 +1,9 @@
+sbs (0.3.7) unstable; urgency=low
+
+  * add debug output if the reopen of the output file fails
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sun, 09 Mar 2008 09:00:00 +0100
+
 sbs (0.3.6) unstable; urgency=low
 
   * print the resource usage of the jobs into the system log.

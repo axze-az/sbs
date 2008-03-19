@@ -16,7 +16,7 @@ DAEMON_USERNAME=daemon
 DAEMON_GROUPNAME=daemon
 MAIL=/usr/sbin/sendmail
 
-# No pam for now -DPAM=1
+# Definitions
 DEFS= \
 -DPAM=1 \
 -D_GNU_SOURCE=1 \

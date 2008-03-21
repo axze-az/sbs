@@ -481,7 +481,7 @@ int main(int argc, char** argv)
 	int timeout=120;
 	int workers=1;
 	int debug=0;
-	double loadav=(double)sysconf(_SC_NPROCESSORS_CONF);
+	double loadav=(double)sysconf(_SC_NPROCESSORS_ONLN);
 	struct work_times wtimes;
 	INIT_PRIVS();
 

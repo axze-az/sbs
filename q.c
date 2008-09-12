@@ -246,7 +246,7 @@ int q_create(const char* basename, const char* qname)
 	struct stat st;
 	if ( (real_uid != daemon_uid) && (real_uid !=0)) {
 		exit_msg(SBS_EXIT_FAILED,
-			 "must be " DAEMON_USERNAME " or root to that");
+			 "must be " DAEMON_USERNAME " or root to do that");
 	}
 
 	PRIV_START();
@@ -255,7 +255,7 @@ int q_create(const char* basename, const char* qname)
 	seteuid(daemon_uid);
 	if (chdir(basename) < 0)
 		exit_msg(SBS_EXIT_CD_FAILED,
-			 "Could not switch to %s", basename);
+			 "could not switch to %s", basename);
 	if ( (stat(qname,&st) ==0) || (errno != ENOENT)) 
 		exit_msg(SBS_EXIT_FAILED,
 			 "%s exists already in the filesystem",
@@ -269,7 +269,7 @@ int q_create(const char* basename, const char* qname)
 			 "%s/%s creation failed", basename, qname);
 	if (chdir(qname) < 0)
 		exit_msg(SBS_EXIT_CD_FAILED,
-			 "Could not switch to %s/%s", basename, qname);
+			 "could not switch to %s/%s", basename, qname);
 	
 	md = S_IWUSR | S_IRUSR | S_IXUSR |
 		S_IWGRP | S_IRGRP | S_IXGRP |

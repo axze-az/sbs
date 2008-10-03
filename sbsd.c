@@ -484,6 +484,12 @@ int main(int argc, char** argv)
 	double loadav=(double)sysconf(_SC_NPROCESSORS_ONLN);
 	struct work_times wtimes;
 	INIT_PRIVS();
+	
+	if (loadav<=0) {
+		loadav=1.0;
+	} else {
+		loadav*= 1.5; /* 4 CPU's : default loadav should be 6 */
+	}
 
 	memset(&wtimes,0,sizeof(wtimes));
 	wtimes._start_hour=0;

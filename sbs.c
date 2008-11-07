@@ -122,7 +122,7 @@ int main(int argc, char** argv)
 	int force_mail=0;
 	const char* jobfile =0;
 	const char* queue=0;
-	int jobno;
+	int jobno=-1;
 	int qj=0, dj=0, lj=0, cj=0;
 	int c;
 	INIT_PRIVS();

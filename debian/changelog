@@ -1,3 +1,9 @@
+sbs (0.3.8) unstable; urgency=high
+
+  * correct the wrong gid during the execution of jobs
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Fri, 07 Nov 2008 17:00:00 +0100
+
 sbs (0.3.7) unstable; urgency=low
 
   * add debug output if the reopen of the output file fails

@@ -25,7 +25,7 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.3.7"
+#define SBS_VERSION "simple batch system V-0.3.8"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0
@@ -90,7 +90,7 @@ extern int q_job_list(const char* basedir, const char* queue,
 extern pid_t q_exec(const char* basedir, 
 		    const char* qname, 
 		    const char* jobname,
-		    uid_t uid, gid_t gid,
+		    uid_t file_uid, gid_t file_gid,
 		    long jobno,
 		    int nice, 
 		    int workernum,

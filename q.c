@@ -805,8 +805,8 @@ int q_job_queue (const char* basedir, const char* queue,
 
 pid_t q_exec(const char* basedir, const char* queue,
 	     const char *filename, 
-	     uid_t uid, 
-	     gid_t gid, 
+	     uid_t file_uid, 
+	     gid_t file_gid, 
 	     long jobno, 
 	     int niceval, 
 	     int workernum,
@@ -827,8 +827,8 @@ pid_t q_exec(const char* basedir, const char* queue,
 	off_t size;
 	struct passwd *pentry;
 	int fflags;
-	long nuid;
-	long ngid;
+	uid_t uid;
+	uid_t gid;
 	struct timeval starttime,endtime;
 	int lockfd;
 	char subject[256];
@@ -872,19 +872,23 @@ pid_t q_exec(const char* basedir, const char* queue,
 			 filename);
 	}
 
+	if (file_gid != daemon_gid)
+		exit_msg(SBS_EXIT_EXEC_FAILED,
+			 "Job %s - daemon gid %ld does not match file gid %ld",
+			 filename, (long)file_gid, (long)daemon_gid);
 	info_msg("executing %s/%ld from %s", queue, jobno, filename); 
 	/* Let's see who we mail to.  Hopefully, we can read it from
 	 * the command file; if not, send it to the owner, or, failing that,
 	 * to root.
 	 */
-	pentry = getpwuid(uid);
+	pentry = getpwuid(file_uid);
 	if (pentry == NULL)
 		exit_msg(SBS_EXIT_EXEC_FAILED,
 			 "Userid %lu not found - aborting job %s",
-			 (unsigned long) uid, filename);
+			 (unsigned long) file_uid, filename);
 #ifdef PAM
-	if ( snprintf(pam_app,sizeof(pam_app),"sbs-%s", queue) >=
-	     (int)sizeof(pam_app)) {
+	if (snprintf(pam_app,sizeof(pam_app),"sbs-%s", queue) >=
+	    (int)sizeof(pam_app)) {
 		exit_msg(SBS_EXIT_PAM_FAILED,
 			 "queue %s: name too long", queue);
 	}
@@ -963,23 +967,19 @@ pid_t q_exec(const char* basedir, const char* queue,
 	fcntl(fd_in, F_SETFD, fflags & ~FD_CLOEXEC);
 
 	snprintf(fmt, sizeof(fmt),
-		 "#!/bin/sh\n# sbsrun uid=%%ld gid=%%ld\n# mail %%%ds %%d",
+		 "#!/bin/sh\n# sbsrun uid=%%d gid=%%d\n# mail %%%ds %%d",
 		 LOGNAMESIZE);
-	if (fscanf(stream, fmt, &nuid, &ngid, mailbuf, &send_mail) != 4)
+	if (fscanf(stream, fmt, &uid, &gid, mailbuf, &send_mail) != 4)
 		exit_msg(SBS_EXIT_EXEC_FAILED,
 			 "File %s is in wrong format - aborting", filename);
 	if (mailbuf[0] == '-')
 		exit_msg(SBS_EXIT_EXEC_FAILED,
 			 "Illegal mail name %s in %s", mailbuf, filename);
 	mailname = mailbuf;
-	if (nuid != uid)
+	if (uid != file_uid)
 		exit_msg(SBS_EXIT_EXEC_FAILED,
 			 "Job %s - userid %ld does not match file uid %lu",
-			 filename, nuid, (unsigned long)uid);
-	if (gid != daemon_gid && ngid != gid)
-		exit_msg(SBS_EXIT_EXEC_FAILED,
-			 "Job %s - groupid %ld does not match file gid %lu",
-			 filename, ngid, (unsigned long)gid);
+			 filename, (long)uid, (long)file_uid);
 	fclose(stream);
 
 	/* switch to spool dir */
@@ -1043,7 +1043,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 		PRIV_START();
 		nice(niceval);
 	
-		if (initgroups(pentry->pw_name,pentry->pw_gid))
+		if (initgroups(pentry->pw_name,gid))
 			exit_msg(SBS_EXIT_EXEC_FAILED,
 				 "cannot init group access list");
 		if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)

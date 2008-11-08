@@ -2,14 +2,14 @@ Source: sbs
 Section: admin
 Priority: extra
 Maintainer: axel <axel.zeuner@gmx.de>
-Build-Depends: debhelper (>= 5)
+Build-Depends: debhelper (>= 5), libpam0g-dev, ssmtp | mail-transport-agent
 Standards-Version: 3.7.2
 
 Package: sbs
 Architecture: any
-Depends: ${shlibs:Depends}, mail-transport-agent 
+Depends: ${shlibs:Depends}, exim4 | mail-transport-agent, lsb-base (>= 3.0-10)
 Description: Simple Batch processing system
  The S(imple) b(atch) s(ystem) is an at like batch system with
- multiple queues. Every queue may be deactivated independent from each
+ multiple queues. Each queue may be deactivated independent from each
  other, runs it's batch jobs with defined nice levels and may be
  active only on parts of the day.

@@ -18,7 +18,7 @@ main()
     do
 	if [ -f $i ] ; then
 	    QUEUE=''
-	    source $i
+	    . $i
 	    echo "#queue $QUEUE"
 	    sbs -l -q $QUEUE 2>/dev/null
 	fi

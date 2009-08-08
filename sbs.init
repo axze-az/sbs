@@ -63,7 +63,7 @@ start1()
         WORKERS=''
         ACTVE=''
         TIMEOUT=''
-        source $CONFIG_PATH/$1.conf
+        . $CONFIG_PATH/$1.conf
         if [ -n $QUEUE ] ; then
             SBS_ARGS=''
             if [ -n "$NICE" ] ; then
@@ -109,7 +109,7 @@ stop1()
 {
     if [ -f $CONFIG_PATH/$1.conf ] ; then
         QUEUE=''
-        source $CONFIG_PATH/$1.conf
+        . $CONFIG_PATH/$1.conf
         if [ -n $QUEUE ] ; then
             stop_one $QUEUE
         else

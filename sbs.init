@@ -1,4 +1,13 @@
 #! /bin/sh
+### BEGIN INIT INFO
+# Provides:          sbs
+# Required-Start:    $syslog $time $remote_fs
+# Required-Stop:     $syslog $time $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Simple batch system
+# Description:       Debian init for the simple batch system
+### END INIT INFO
 #
 # sbs.init:   The simple batch system daemons
 #

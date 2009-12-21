@@ -1,3 +1,7 @@
+sbs (0.3.14) unstable; urgency=high
+
+  * change queue defaults
+
 sbs (0.3.12) unstable; urgency=high
 
   * correct sbs.pam: change session to non interactive

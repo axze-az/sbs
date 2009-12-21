@@ -28,7 +28,6 @@ DEFS= \
 -DDAEMON_USERNAME=\"${DAEMON_USERNAME}\" \
 -DDAEMON_GROUPNAME=\"${DAEMON_GROUPNAME}\" 
 
-
 CC=gcc
 CXX=g++
 WARN=-Wall -Werror -W -Wunused -Wall

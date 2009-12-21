@@ -1,3 +1,9 @@
+sbs (0.3.12) unstable; urgency=high
+
+  * correct sbs.pam: change session to non interactive
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Mon, 21 Dec 2009 15:29:00 +0100
+
 sbs (0.3.11) unstable; urgency=high
 
   * correct sbs.init: add debian init info

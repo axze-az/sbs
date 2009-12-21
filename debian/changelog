@@ -1,6 +1,14 @@
 sbs (0.3.14) unstable; urgency=high
 
+  * correct change log entries
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Mon, 21 Dec 2009 15:40:00 +0100
+
+sbs (0.3.13) unstable; urgency=high
+
   * change queue defaults
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Mon, 21 Dec 2009 15:38:00 +0100
 
 sbs (0.3.12) unstable; urgency=high
 

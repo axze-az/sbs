@@ -226,7 +226,7 @@ int pqueue_print(FILE* f, const struct pqueue* q, uid_t uid)
         if ((uid == 0) || (uid == DAEMON_UID)) {
                 fprintf(f,
                         "# version: %2u.%02u, id: %8i, "
-                        "processed jobs: %8i, queued jobs: %8i\n",
+                        "processed jobs: %8li, queued jobs: %8li\n",
                         (q->_head._ver >> 16) & 0xffff,
                         q->_head._ver & 0xffff,
                         q->_head._id, q->_head._total, q->_head._entry_cnt);

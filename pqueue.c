@@ -15,7 +15,6 @@
 #define PRI_DEFAULT ((PRI_MAX-PRI_MIN)/2)
 #define DAEMON_UID 1
 #define JOB_LIST_FILE ".priq.dat"
-#define JOB_LIST_LCK_FILE ".priq.dat.lck"
 
 struct pqueue_entry {
         int _id;
@@ -35,7 +34,6 @@ struct pqueue {
         struct pqueue_entry* _entries;
         size_t _alloc_cnt;
         int _fd;
-        int _lock_fd;
 };
 
 char* uid_2_name(uid_t uid)
@@ -57,6 +55,7 @@ char* uid_2_name(uid_t uid)
         return uname;
 }
 
+#if 0
 struct pqueue_entry* pqueue_entry_create(void)
 {
         struct pqueue_entry* e=
@@ -75,12 +74,9 @@ int pqueue_entry_read(int fd, struct pqueue_entry* e)
 {
         ssize_t r;
         while (((r=read(fd, (char*)e, sizeof(*e)))<0) && (errno==EINTR));
-#if 0
-        if ((r != sizeof(*e)) && (r!=0) ) 
-                fprintf(stderr, "entry read: %i\n", r);
-#endif
         return r != sizeof(*e);
 }
+#endif
 
 int pqueue_entry_print(FILE* f, const struct pqueue_entry* e,
                        uid_t uid)
@@ -155,9 +151,34 @@ int pqueue_cmp(const void* va, const void* vb)
         return 0;
 }
 
+static int pqueue_read_entries(int fd, struct pqueue* pq)
+{
+        ssize_t r=0, n;
+        char* buf;
+        n= pq->_head._entry_cnt* sizeof(struct pqueue_entry);
+        if ( pq->_head._entry_cnt > pq->_alloc_cnt ) {
+                /* keep at least one free entry to avoid reallocations
+                 * later */
+                struct pqueue_entry* ne= (struct pqueue_entry*)
+                        realloc(pq->_entries, n+ sizeof(struct pqueue_entry));
+                if (ne == 0)
+                        return errno;
+                pq->_entries=ne;
+                pq->_alloc_cnt = pq->_head._entry_cnt + 1;
+        }
+        buf= (char*)pq->_entries;
+        while (r != n) {
+                ssize_t r0;
+                while (((r0=read(fd,buf+r,n-r))<0) && (errno==EINTR));
+                if (r0<=0)
+                        break;
+                r += r0;
+        }
+        return r != n;
+}
+
 int pqueue_read(int fd, struct pqueue* q)
 {
-        size_t entry_cnt;
         ssize_t h;
         while (((h=read(fd, &q->_head, sizeof(q->_head)))<0) &&
                (errno==EINTR));
@@ -165,22 +186,27 @@ int pqueue_read(int fd, struct pqueue* q)
                 /* fprintf(stderr, "head read: %i\n", h); */
                 return 1;
         }
-        entry_cnt = q->_head._entry_cnt;
-        q->_head._entry_cnt =0;
-        do {
-                if (q->_head._entry_cnt == q->_alloc_cnt)
-                        pqueue_expand(q);
-                if (pqueue_entry_read(fd,
-                                      &q->_entries[q->_head._entry_cnt])!=0)
+        return pqueue_read_entries(fd, q);
+}
+
+int pqueue_write_entries(int fd, const struct pqueue* pq)
+{
+        size_t n,w=0;
+        const char* buf= (const char*)(pq->_entries);
+        n= pq->_head._entry_cnt * sizeof(struct pqueue_entry);
+        while (w !=n ) {
+                ssize_t w0;
+                while (((w0=write(fd,buf+w,n-w))<0) && (errno==EINTR));
+                if (w0<=0)
                         break;
-                ++q->_head._entry_cnt;
-        } while (1);
-        return entry_cnt != q->_head._entry_cnt;
+                w += w0;
+        }
+        return w != n;
 }
 
 int pqueue_write(int fd, const struct pqueue* q)
 {
-        int i,r=0;
+        int r=0;
         ssize_t w;
         sigset_t sm,empty;
         sigfillset(&empty);
@@ -189,11 +215,7 @@ int pqueue_write(int fd, const struct pqueue* q)
                (errno==EINTR));
         if (w != sizeof(q->_head)) 
                 return 1;
-        for (i=0; i<q->_head._entry_cnt;++i)  {
-                r=pqueue_entry_write(fd, q->_entries + i);
-                if (r)
-                        break;
-        }
+        r=pqueue_write_entries(fd,q);
         sigprocmask(SIG_SETMASK, &sm, NULL);
         return r;
 }
@@ -252,7 +274,7 @@ int pqueue_dequeue(struct pqueue* q)
         int id=-1;
         size_t i=0;
         while (i<q->_head._entry_cnt) {
-                if ( q->_entries[i]._pri != PRI_RUN) {
+                if (q->_entries[i]._pri != PRI_RUN) {
                         q->_entries[i]._pri = PRI_RUN;
                         id= q->_entries[i]._id;
                         break;
@@ -267,7 +289,7 @@ int pqueue_remove(struct pqueue* q, int id, uid_t uid)
         int r=ENOENT;
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
-                if (q->_entries[i]._id == id ) {
+                if (q->_entries[i]._id == id) {
                         if ((uid==0) || 
                             ((uid==DAEMON_UID) && 
                              (q->_entries[i]._uid !=0)) ||
@@ -287,45 +309,34 @@ struct pqueue* pqueue_open_lock_read(const char* path, int rw)
 {
         struct flock fl;
         struct pqueue* pq=NULL;
-        int lock_fd = -1;
         int fd = -1;
         int lr = 0;
         int ofl= rw ? O_RDWR : O_RDONLY;
-        size_t s= strlen(path)+strlen(JOB_LIST_LCK_FILE)+2;
+        size_t s= strlen(path)+strlen(JOB_LIST_FILE)+2;
         char* fname= alloca(s);
-        mode_t umsk=umask(0);
-        snprintf(fname, s, "%s/%s", path, JOB_LIST_LCK_FILE);
-        while (((lock_fd=open(fname,  ofl))<0) 
-               && (errno==EINTR));
-        umask(umsk);
-        if (lock_fd < 0)
+        snprintf(fname, s, "%s/%s", path, JOB_LIST_FILE);
+        while (((fd=open(fname,  ofl))<0) && (errno==EINTR));
+        if (fd < 0)
                 goto err_null;
         memset(&fl,0,sizeof(fl));
         fl.l_type = rw ? F_WRLCK : F_RDLCK;
         fl.l_whence = SEEK_SET;
         fl.l_start = 0;
         fl.l_len = 0;
-        while (((lr=fcntl(lock_fd, F_SETLKW, &fl))<0) && (errno==EINTR));
+        while (((lr=fcntl(fd, F_SETLKW, &fl))<0) && (errno==EINTR));
         if (lr < 0)
-                goto err_close_lock;
-        snprintf(fname, s, "%s/%s", path, JOB_LIST_FILE);
-        while (((fd=open(fname,  ofl))<0) && (errno==EINTR));
-        if (fd < 0)
-                goto err_close_lock;
+                goto err_close;
         pq=pqueue_create();
         if (pq==NULL)
-                goto err_close_data;
+                goto err_close;
         if (pqueue_read(fd, pq)!=0)
                 goto err_free;
         pq->_fd = fd;
-        pq->_lock_fd = lock_fd;
         return pq;
 err_free:
         pqueue_destroy(pq);
-err_close_data:
+err_close:
         close(fd);
-err_close_lock:
-        close(lock_fd);
 err_null:
         return NULL;
 };
@@ -338,11 +349,8 @@ int pqueue_update_close_destroy(struct pqueue* pq, int rw)
                 pqueue_write(pq->_fd,pq);
                 o = lseek(pq->_fd, 0, SEEK_CUR);
                 ftruncate(pq->_fd,o);
-                fsync(pq->_fd);
         }
         while ((close(pq->_fd)<0) && (errno==EINTR)); 
-        /* releases also the lock: */
-        while ((close(pq->_lock_fd)<0) && (errno==EINTR)); 
         pqueue_destroy(pq);
         return 0;
 }
@@ -350,27 +358,30 @@ int pqueue_update_close_destroy(struct pqueue* pq, int rw)
 int pqueue_fs_init(const char* path)
 {
         mode_t m=umask(0);
-        size_t s=strlen(path)+strlen(JOB_LIST_LCK_FILE)+2;
+        size_t s=strlen(path)+strlen(JOB_LIST_FILE)+2;
         char* fname=alloca(s);
-        int lock_fd, fd;
+        int fd,r=1;
+        struct pqueue* pq=NULL;
+        off_t o;
         snprintf(fname, s, "%s/%s", path, JOB_LIST_FILE);
         unlink(fname);
         fd = open(fname, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
         umask(m);
-        if (fd>=0) {
-                struct pqueue* pq=pqueue_create();
-                off_t o;
-                pqueue_write(fd,pq);
-                o= lseek(fd, 0, SEEK_CUR);
-                ftruncate(fd, o);
-                close(fd);
-                pqueue_destroy(pq);
-                snprintf(fname, s, "%s/%s", path, JOB_LIST_LCK_FILE);
-                unlink(fname);
-                lock_fd = open(fname, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
-                close(lock_fd);
-        }
-        return 0;
+        if (fd<0)
+                goto err_ret;
+        pq=pqueue_create();
+        if (pq == NULL )
+                goto err_ret;
+        if (pqueue_write(fd,pq))
+                goto err_destroy;
+        o= lseek(fd, 0, SEEK_CUR);
+        ftruncate(fd, o);
+        close(fd);
+        r=0;
+err_destroy:
+        pqueue_destroy(pq);
+err_ret:
+        return r;
 }
 
 #ifdef TEST

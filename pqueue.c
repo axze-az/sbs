@@ -1,3 +1,22 @@
+/* 
+ *  pqueue.c - simple batch system queue implementation
+ *  Copyright (C) 2010 Axel Zeuner
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+#include "privs.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,22 +34,28 @@
 #define PRI_MIN 0
 #define PRI_RUN -1
 #define PRI_DEFAULT ((PRI_MAX-PRI_MIN)/2)
+#ifdef TEST
 #define DAEMON_UID 1
-#define JOB_LIST_FILE ".priq.dat"
+#else
+#define DAEMON_UID daemon_uid
+#endif
+#define JOB_LIST_FILE "joblist.dat"
+
+#define PQUEUE_VER (1<<16|0)
 
 struct pqueue_entry {
         int _id;
         int _pri;
 	struct timeval _time;
         uid_t _uid;
-};
+} __attribute__((__aligned__(16)));
 
 struct pqueue_head {
         int _ver;
         int _id;
         size_t _total;
         size_t _entry_cnt;
-};
+} __attribute__((__aligned__(16)));
 
 struct pqueue {
         struct pqueue_head _head;
@@ -39,6 +64,7 @@ struct pqueue {
         int _fd;
 };
 
+static
 char* uid_2_name(uid_t uid)
 {
         char* b=NULL;
@@ -58,29 +84,7 @@ char* uid_2_name(uid_t uid)
         return uname;
 }
 
-#if 0
-struct pqueue_entry* pqueue_entry_create(void)
-{
-        struct pqueue_entry* e=
-                (struct pqueue_entry*)calloc(1,sizeof(*e));
-        return e;
-}
-
-int pqueue_entry_write(int fd, const struct pqueue_entry* e)
-{
-        ssize_t w;
-        while (((w=write(fd, e, sizeof(*e)))<0) && (errno==EINTR));
-        return w != sizeof(*e);
-}
-
-int pqueue_entry_read(int fd, struct pqueue_entry* e)
-{
-        ssize_t r;
-        while (((r=read(fd, (char*)e, sizeof(*e)))<0) && (errno==EINTR));
-        return r != sizeof(*e);
-}
-#endif
-
+static
 int pqueue_entry_print(FILE* f, const struct pqueue_entry* e,
                        uid_t uid)
 {
@@ -102,11 +106,13 @@ int pqueue_entry_print(FILE* f, const struct pqueue_entry* e,
         return 0;
 }
 
+static
 struct pqueue* pqueue_create(void)
 {
         struct pqueue* q=(struct pqueue*)calloc(1,sizeof(*q));
         if (q) {
                 int alloc_cnt=256;
+		q->_head._ver = PQUEUE_VER;
                 q->_entries=(struct pqueue_entry*)
                         malloc(alloc_cnt*sizeof(struct pqueue_entry));
                 if (q->_entries) {
@@ -119,12 +125,14 @@ struct pqueue* pqueue_create(void)
         return q;
 }
 
+static
 void pqueue_destroy(struct pqueue* q)
 {
         free(q->_entries);
         free(q);
 }
 
+static 
 int pqueue_expand(struct pqueue* q)
 {
         struct pqueue_entry* ne= (struct pqueue_entry*)
@@ -144,6 +152,7 @@ int pqueue_next_id(struct pqueue* q)
         return q->_head._id;
 }
 
+static
 int pqueue_cmp(const void* va, const void* vb)
 {
         const struct pqueue_entry* a=(const struct pqueue_entry*)va;
@@ -235,7 +244,7 @@ int pqueue_write(int fd, const struct pqueue* q)
 
 int pqueue_print(FILE* f, const struct pqueue* q, uid_t uid)
 {
-        int i;
+        size_t i;
         if ((uid == 0) || (uid == DAEMON_UID)) {
                 fprintf(f,
                         "# version: %2u.%02u, id: %8i, "
@@ -263,6 +272,7 @@ int pqueue_enqueue(struct pqueue* q, int pri, uid_t uid)
         if (q->_head._entry_cnt == q->_alloc_cnt)
                 pqueue_expand(q);
         e= q->_entries + q->_head._entry_cnt;
+	memset(e,0,sizeof(*e));
         e->_pri = pri;
         e->_id = id = pqueue_next_id(q);
         e->_uid = uid;
@@ -305,8 +315,7 @@ int pqueue_remove(struct pqueue* q, int id, uid_t uid)
         for (i=0;i<q->_head._entry_cnt;++i) {
                 if (q->_entries[i]._id == id) {
                         if ((uid==0) || 
-                            ((uid==DAEMON_UID) && 
-                             (q->_entries[i]._uid !=0)) ||
+                            (uid==DAEMON_UID) ||
                             (uid==q->_entries[i]._uid)) {
                                 pqueue_remove_entry(q,i);
                                 r=0;

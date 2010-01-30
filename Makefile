@@ -44,7 +44,7 @@ PROGS= sbsd sbs sbs-list-queues
 SCRIPTS= sbs-clear-queue
 progs: $(PROGS) $(SCRIPTS)
 
-LIBSBS_O=privs.o q.o perm.o msg.o
+LIBSBS_O=privs.o q.o perm.o msg.o pqueue.o
 libsbs.a: $(LIBSBS_O)
 	$(AR) rv $@ $(LIBSBS_O)
 

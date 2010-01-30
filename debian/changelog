@@ -1,3 +1,9 @@
+sbs (0.4.1) unstable; urgency=low
+
+  * corrected build flags
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 30 Jan 2010 15:17:00 +0100
+
 sbs (0.4.0) unstable; urgency=low
 
   * add priorities to sbs, changed on disk format

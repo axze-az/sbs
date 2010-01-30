@@ -19,6 +19,7 @@
 #include "sbs.h"
 #include "msg.h"
 #include "privs.h"
+#include "pqueue.h"
 
 #include <getopt.h>
 #include <string.h>
@@ -58,82 +59,49 @@ int sbs_run(const char* basename, const char* queue,
 	    pid_t* pids, int workernum,
 	    int notifyfd)
 {
-	DIR *spool;
-	struct dirent *dirent;
-	struct stat buf;
-	int lockfd;
+	struct pqueue* pq;
 	int i;
-	int jobs=0,started=0;
-	unsigned long min_jobno=0;
+	int jobs, started=0;
+	double loadav;
 
-	q_cd_job_dir (basename, queue);
-	if ( (lockfd=q_lock_job_file ()) < 0) {
-		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
-			 "could not lock job file in %s/%s",
+	if (q_cd_dir(basename, queue))
+		exit_msg(SBS_EXIT_CD_FAILED,
+			 "could not switch to %s/%s",
 			 basename, queue);
-	}
-	for ( i = 0; i< workernum; ++i) {
-		char batch_name[PATH_MAX];
-		int batch_run = 0;
-		unsigned long jobno;
-		unsigned long batch_jobno=(unsigned long)-1;
-		uid_t batch_uid;
-		gid_t batch_gid;
-		double loadav;
-		if (pids[i] != (pid_t)0)
-			continue;
-		if ((spool = opendir(".")) == NULL)
-			exit_msg(SBS_EXIT_FAILED, 
-				 "cannot read %s/%s", basename, queue);
-		batch_uid = (uid_t) -1;
-		batch_gid = (gid_t) -1;
-		while ((dirent = readdir(spool)) != NULL) {
-			if (stat(dirent->d_name,&buf) != 0)
-				exit_msg(SBS_EXIT_FAILED,
-					 "cannot stat in %s/%s", 
-					 basename, queue);
-			/* We don't want directories */
-			if (!S_ISREG(buf.st_mode)) 
+	if (chdir(SBS_QUEUE_JOB_DIR)<0)
+		exit_msg(SBS_EXIT_CD_FAILED,
+			 "could not switch to %s/%s/" SBS_QUEUE_JOB_DIR,
+			 basename, queue);
+	pq= pqueue_open_lock_read(".", 1);
+	if (pq==NULL)
+		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
+			 "could not lock job list file in %s/%s",
+			 basename, queue);
+	loadav = sbs_loadavg ();
+	if (loadav > maxloadavg) {
+		info_msg("load average %.1f >= threshold %.1f",
+			 loadav,maxloadavg);
+	} else  {
+		for (i=0;i<workernum; ++i) {
+			int jobid;
+			uid_t batch_uid;
+			if (pids[i] != (pid_t)0)
 				continue;
-			if (sscanf(dirent->d_name,"j%05lx",&jobno) != 1)
-				continue;
-			if (q_job_status (dirent->d_name) == SBS_JOB_QUEUED) {
-				++jobs;
-				if ( (jobno >= min_jobno) &&
-				     (jobno < batch_jobno) ) {
-					batch_run = 1;
-					strncpy(batch_name, 
-						dirent->d_name, 
-						sizeof(batch_name));
-					batch_uid = buf.st_uid;
-					batch_gid = buf.st_gid;
-					batch_jobno= jobno;
-				}
-			}
-		}
-		closedir(spool);
-		loadav = sbs_loadavg ();
-		/* run a single file, if any */
-		if ((batch_run>0) && (loadav <= maxloadavg) ) {
-
-			if ( loadav <= maxloadavg) {
-				min_jobno= batch_jobno+1;
+			jobid= pqueue_dequeue(pq);
+			if (jobid > 0) {
+				pqueue_get_job_uid(pq,jobid,&batch_uid);
+				
 				pids[i]=q_exec(basename, queue,
-					       batch_name, batch_uid, 
-					       batch_gid, batch_jobno,
+					       batch_uid, 
+					       daemon_gid, jobid,
 					       nicelvl,i,notifyfd);
-				if ( pids[i] > 0 )
-					++started;
-			} else {
+				++started;
 			}
-		} else {
-			if ( loadav > maxloadavg)
-				info_msg("load average %.1f >= threshold %.1f",
-					 loadav,maxloadavg);
-			break;
 		}
 	}
-	close(lockfd);
+	jobs = pqueue_get_entry_cnt(pq);
+	pqueue_update_close_destroy(pq,1);
+	chdir("/");
 	return jobs > started ? 1 : 0;
 }
 
@@ -355,10 +323,9 @@ void dummy_sighdlr(int sig, siginfo_t* sa, void* ctx)
 }
 
 static
-void sbsd_openlog(const char* queue, int debug)
+void sbsd_openlog(char* buf, size_t s, const char* queue, int debug)
 {
-	char buf[256];
-	snprintf(buf,sizeof(buf), "sbsd-%s", queue);
+	snprintf(buf,s, "sbsd-%s", queue);
 	openlog(buf, LOG_PID | (debug ? LOG_PERROR :0), LOG_DAEMON);
 }
 
@@ -373,8 +340,9 @@ int sbs_daemon(const char* basename, const char* queue,
 	struct sigaction sa;
 	struct sbsd_data_s sdta;
 	int done=0,jobs_avail=1; /* force an initial check */
+	char buf[256];
 	daemonized=1;
-	sbsd_openlog(queue, debug);
+	sbsd_openlog(buf, sizeof(buf), queue, debug);
 
 	/* block all signals */
 	sigfillset(&sigm);

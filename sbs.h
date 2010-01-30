@@ -25,20 +25,18 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.3.14"
+#define SBS_VERSION "simple batch system V-0.4.0"
 /*
  * queue layout: 
  * basedir/queue/jobs/.active.0
  *                   /.active.1
- *		     /.SEQ
- *		     /.job_lck
+ *		     /joblist.dat
  *              /spool
  *
  */
 #define SBS_QUEUE_JOB_DIR		"jobs"
 #define SBS_QUEUE_SPOOL_DIR		"spool"
 #define SBS_QUEUE_ACTIVE_LOCKFILE	".active"
-#define SBS_QUEUE_JOB_LOCKFILE		".job_lck"
 
 #define SBS_EXIT_FAILED			3
 #define SBS_EXIT_CD_FAILED		31
@@ -68,18 +66,13 @@ extern void q_restore_signals(const sigset_t* sigs);
 extern pid_t q_read_pidfile(const char* qname);
 extern int q_write_pidfile(const char* qname);
 
+
 extern int q_lock_file(const char* fname, int wait);
 extern int q_lock_active_file(int num);
-extern int q_lock_job_file(void);
-
-extern int q_job_status(const char* filename);
-extern int q_job_status_change(const char* filename, 
-			       int status);
-extern long q_job_next(void);
 
 extern int q_job_queue (const char* basedir, const char* queue,
 			FILE* job, const char* workingdir, 
-			int force_mail,
+			int prio, int force_mail,
 			char* fname, size_t s);
 extern int q_job_dequeue(const char* basedir, const char* queue, long jobid);
 extern int q_job_cat(const char* basedir, const char* queue,
@@ -89,7 +82,6 @@ extern int q_job_list(const char* basedir, const char* queue,
 
 extern pid_t q_exec(const char* basedir, 
 		    const char* qname, 
-		    const char* jobname,
 		    uid_t file_uid, gid_t file_gid,
 		    long jobno,
 		    int nice, 

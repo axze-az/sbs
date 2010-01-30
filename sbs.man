@@ -1,13 +1,13 @@
 .\" Process this file with 
 .\" groff -man -Tascii sbsd.man
 .\" 
-.TH sbs 1 "DEC 2007" "sbs"
+.TH sbs 1 "JAN 2010" "sbs"
 .SH NAME
 sbs \- queue, examine or delete simple batch system jobs for later
 execution
 .SH SYNOPSIS
 .P
-.B sbs -q queue [-f file] [-m]
+.B sbs -q queue [-f file] [-m] [-p pri]
 .P
 .B sbs -q queue -c job 
 .P
@@ -29,6 +29,9 @@ specifies the sbs queue to work on.
 .TP 
 .B -f " file"
 reads the job command from file instead from standard input.
+.TP 
+.B -p " prio"
+selects the priority [0-100] of the job.
 .TP
 .B -m 
 requests delivery of a mail after job execution even without job output.

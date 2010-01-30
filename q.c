@@ -19,6 +19,7 @@
 #include "sbs.h"
 #include "msg.h"
 #include "privs.h"
+#include "pqueue.h"
 
 #include <sys/socket.h> /* basic socket definitions */
 #include <sys/types.h> /* basic system data types */
@@ -68,64 +69,6 @@ int q_cd_dir(const char* basename, const char* qname)
 	return 0;
 }
 
-#if 0
-int q_notify_init(const char* basename, const char* q)
-{
-        mode_t msk= umask(0);
-        int fd=-1,flag;
-        q_cd_dir(basename,q);
-        do {
-                if ((mknod("notify", S_IRUSR | S_IWUSR| S_IFIFO,0) <0) &&
-                    (errno != EEXIST)) {
-                        fd = -errno;
-                        break;
-                }
-                fd=open("notify", O_NONBLOCK | O_RDONLY | O_ASYNC);
-		if ( fd < 0)
-			break;
-                /* set sigio and close on exec. */
-		fcntl (fd, F_SETFD, FD_CLOEXEC);
-		fcntl (fd, F_SETOWN, getpid());
-		flag=fcntl (fd, F_GETFL, flag);
-		fcntl (fd, F_SETFL, flag | O_NONBLOCK | O_ASYNC);
-        } while (0);
-        umask(msk);
-        return fd;
-}
-
-int q_notify_handle(int fd)
-{
-        char buf[64];
-        /* dequeue all requests */
-        while ( read(fd,buf,sizeof(buf))>0);
-	return 0;
-}
-
-
-int q_notify_daemon(const char* basename, const char* q)
-{
-        // q_cd_dir(basename,q);
-        int fd;
-        sigset_t s,os;
-        sigfillset(&s);
-        sigprocmask(SIG_SETMASK,&s,&os);
-	q_cd_dir(basename,q);
-	PRIV_START();
-        if ((fd=open("notify", O_NONBLOCK | O_WRONLY | O_APPEND))>=0) {
-                char c=1;
-                if (write(fd,&c,1)!=1) {
-			info_msg("write: %s", strerror(errno));
-		}
-                close(fd);
-        } else {
-		info_msg("notify open: %s", strerror(errno));
-	}
-	PRIV_END();
-        sigprocmask(SIG_SETMASK,&os,0);
-	return fd >=0 ? 0 : -fd;
-}
-
-#else
 int q_notify_un(const char* basename, const char* qname,
 		struct sockaddr_un* addr)
 {
@@ -201,7 +144,6 @@ int q_notify_daemon( const char* basename, const char* qname)
 	close(sfd);
 	return r;
 }
-#endif
 
 int q_cd_job_dir (const char* basename, const char* qname)
 {
@@ -215,7 +157,7 @@ int q_cd_job_dir (const char* basename, const char* qname)
 	return 0;
 }
 
-int q_cd_spool_dir (const char* basename, const char* qname)
+int q_cd_spool_dir(const char* basename, const char* qname)
 {
 	PRIV_START();
 	q_cd_dir(basename, qname);
@@ -283,6 +225,10 @@ int q_create(const char* basename, const char* qname)
 		exit_msg(SBS_EXIT_FAILED,
 			 "%s/%s/" SBS_QUEUE_SPOOL_DIR "creation failed", 
 			 basename, qname);
+	if (pqueue_fs_init(SBS_QUEUE_JOB_DIR) !=0) 
+		exit_msg(SBS_EXIT_FAILED,
+			 "%s/%s/%s creation failed", 
+			 basename, qname, PQUEUE_JOB_LIST_FILE);
 	umask(um);
 	PRIV_END();
 	return 0;
@@ -384,183 +330,50 @@ int q_lock_active_file(int num)
 	return q_lock_file (fname, 0);
 }
 
-int q_lock_job_file (void)
-{
-	return q_lock_file (SBS_QUEUE_JOB_LOCKFILE, 1);
-}
-
-int q_job_status(const char* jobname)
-{
-	struct stat st;
-	int r=-1;
-	if ( stat(jobname, &st) == 0) {
-		switch (st.st_mode & (S_IWUSR | S_IRUSR | S_IXUSR) ) {
-		case S_IRUSR:
-			r= SBS_JOB_ACTIVE;
-			break;
-		case S_IWUSR | S_IRUSR | S_IXUSR:
-			r= SBS_JOB_QUEUED;
-			break;
-		default:
-			/* r=-1; */
-			break;
-		}
-	} else {
-		warn_msg("job %s could not read status: %s",
-			 jobname,strerror(errno));
-	}
-	return r;
-}
-
-int q_job_status_change(const char* jobname, int status)
-{
-	int fd=-1;
-	int r=-1;
-	/* info_msg("real_uid: %i\n", real_uid); */
-	if ( (r=fd=q_lock_job_file()) >= 0 ) {
-		switch (status) {
-		case SBS_JOB_ACTIVE:
-			PRIV_START();
-			if ( chmod(jobname, 
-				   S_IRUSR) < 0) {
-				warn_msg("job %s change to active failed: %s",
-					 jobname,strerror(errno));
-				r=-errno;
-			}
-			PRIV_END();
-			break;
-		case SBS_JOB_QUEUED:
-			PRIV_START();
-			seteuid(real_uid);
-			if ( chmod(jobname, 
-				   S_IWUSR | S_IRUSR | S_IXUSR) < 0) {
-				warn_msg("job %s change to queued failed: %s",
-					 jobname,strerror(errno));
-				r=-errno;
-			}
-			PRIV_END();
-			break;
-		case SBS_JOB_DONE:
-			PRIV_START();
-			if ( unlink(jobname)<0) {
-				warn_msg("job %s change to done failed: %s",
-					 jobname,strerror(errno));
-				r=-errno;
-			}
-			PRIV_END();
-			break;
-		}
-		close(fd);
-	}
-	return fd;
-}
 
 int q_job_list(const char* basedir, const char* queue,
 	       FILE* out)
 {
-	int lockfd;
-	DIR* jobs=0;
-	struct dirent *dirent;
-	struct stat st;
-	struct passwd* pentry;
-	pentry = getpwuid(real_uid);
-	int jbcnt=0;
-	if (pentry == NULL)
-		exit_msg(SBS_EXIT_FAILED,
-			 "Userid %lu not found",
-			 (unsigned long) real_uid);
+	struct pqueue* pq;
 	q_cd_job_dir (basedir, queue);
-	lockfd = q_lock_job_file();
-	if ( lockfd < 0 ) 
-		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
-			 "could not lock %s/%s/" 
-			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
 	PRIV_START();
-	jobs = opendir(".");
-	PRIV_END ();
-	close(lockfd);
-
-	if ( jobs == 0)
-		exit_msg(SBS_EXIT_FAILED,
-			 "could not read dir %s/%s/",
-			 basedir, queue);
-	fprintf(out, "%-20s\t%-8s\t%-10s\t%-10s\n", 
-		"# queue",
-		"id",
-		"owner",
-		"status");
-	
-	while ((dirent = readdir(jobs)) != NULL) {
-		long jobno;
-		int status;
-		const char* jobstatname;
-		PRIV_START();
-		status=stat(dirent->d_name,&st);
-		PRIV_END();
-		if ( status !=0)
-			continue;
-		/* We don't want directories
-		 */
-		if (!S_ISREG(st.st_mode)) 
-			continue;
-		if (sscanf(dirent->d_name,SBS_JOB_FILE_MASK,&jobno) != 1)
-			continue;
-		if ((real_uid == 0) || (real_uid == daemon_uid)) {
-			pentry = getpwuid(st.st_uid);
-			if (pentry == NULL)
-				exit_msg(SBS_EXIT_FAILED,
-					 "Userid %lu not found",
-					 (unsigned long) real_uid);
-		} else {
-			/* normal users see only their jobs */
-			if (st.st_uid != real_uid)
-				continue;
-		}
-		PRIV_START();
-		status=q_job_status (dirent->d_name);
-		PRIV_END();
-		switch (status) {
-		case SBS_JOB_QUEUED:
-			jobstatname ="queued";
-			break;
-		case SBS_JOB_ACTIVE:
-			jobstatname ="ACTIVE";
-			break;
-		default:
-			jobstatname ="unknown";
-			break;
-		};
-		fprintf(out, "%-20s\t%-8ld\t%-10s\t%-10s\n", 
-			queue,
-			jobno,
-			pentry->pw_name,
-			jobstatname);
-		++jbcnt;
+	pq= pqueue_open_lock_read(".",0);
+	PRIV_END();
+	if (pq == 0) {
+		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
+			 "could not lock and read %s/%s/" 
+			 PQUEUE_JOB_LIST_FILE, basedir, queue);
 	}
-	closedir(jobs);
-	fprintf(out, "# jobs: %i\n", jbcnt);
+	pqueue_close(pq);
+	pqueue_print(out,pq, real_uid);
+	pqueue_destroy(pq);
 	return 0;
 }
 
 int q_job_cat(const char* basedir, const char* queue,
 	      long jobno, FILE* out)
 {
-	int lockfd;
+	struct pqueue* pq;
 	char filename[PATH_MAX];
-	FILE* f=0;
 	int c;
+	FILE* f;
 	q_cd_job_dir (basedir, queue);
-	lockfd = q_lock_job_file();
-	if ( lockfd < 0 ) 
-		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
-			 "could not lock %s/%s/" 
-			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
 	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
+	PRIV_START();
+	pq= pqueue_open_lock_read(".",0);
+	c= pqueue_check_jobid(pq, jobno, real_uid);
+	PRIV_END();
+	if (c!=0) {
+		pqueue_update_close_destroy(pq,0);
+		exit_msg(SBS_EXIT_FAILED,
+			 "job %s/%ld does not exist",
+			 queue,jobno);
+	}
 	PRIV_START();
 	seteuid(real_uid);
 	f = fopen(filename,"r");
 	PRIV_END ();
-	close(lockfd);
+	pqueue_update_close_destroy(pq,0);
 	if (f == 0) 
 		exit_msg(SBS_EXIT_FAILED,
 			 "could not open %s/%ld %s",
@@ -574,62 +387,33 @@ int q_job_cat(const char* basedir, const char* queue,
 
 int q_job_dequeue(const char* basedir, const char* queue, long jobno)
 {
-	int lockfd;
+	struct pqueue* pq;
 	char filename[PATH_MAX];
+	int r;
 	q_cd_job_dir (basedir, queue);
-	lockfd = q_lock_job_file();
-	if ( lockfd < 0 ) 
-		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
-			 "could not lock %s/%s/" 
-			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
 	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
-	if ( real_uid != 0) {
-		struct stat st;
-		PRIV_START();
-		if ( stat(filename,&st) < 0) 
-			exit_msg(SBS_EXIT_FAILED,
-				 "could not check %s/%ld %s",
-				 queue,jobno,strerror(errno));
-		PRIV_END();
-		if ( st.st_uid != real_uid)
-			exit_msg(SBS_EXIT_FAILED,
-				 "not owner %s/%ld",
-				 queue,jobno);
+	PRIV_START();
+	pq = pqueue_open_lock_read(".", 1);
+	PRIV_END();
+	if (pq==0) {
+		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
+			 "could not lock and read %s/%s/" 
+			 PQUEUE_JOB_LIST_FILE, basedir, queue);
 	}
+	if ((r=pqueue_remove(pq, jobno, real_uid))!=0) {
+		exit_msg(SBS_EXIT_FAILED,
+			 "could not remove %s/%ld %s",
+			 queue, jobno, strerror(r));
+	}
+	pqueue_update_close_destroy(pq,1);
 	PRIV_START();
 	if ( unlink(filename) < 0) 
 		exit_msg(SBS_EXIT_FAILED,
 			 "could not remove %s/%ld %s",
 			 queue,jobno,strerror(errno));
 	PRIV_END();
-	close(lockfd);
 	return 0;
 }
-
-long q_job_next(void)
-{
-    long jobno=EOF;
-    FILE *fid;
-    PRIV_START();
-    if ((fid = fopen(".SEQ", "r+")) != NULL) {
-	if (fscanf(fid, "%5lx", &jobno) == 1) {
-	    rewind(fid);
-	    jobno = (1+jobno) % 0xfffff;	/* 2^20 jobs enough? */
-	    fprintf(fid, "%05lx\n", jobno);
-	}
-	else
-	    jobno = EOF;
-	fclose(fid);
-    }
-    else if ((fid = fopen(".SEQ", "w")) != NULL) {
-	    fprintf(fid, "%05lx\n", jobno = 1);
-	    fclose(fid);
-	    jobno = 1;
-    }
-    PRIV_END();
-    return jobno;
-}
-
 
 static const char *no_export[] = {
     "TERM", "DISPLAY", "_", "SHELLOPTS", 
@@ -638,14 +422,16 @@ static const char *no_export[] = {
 
 int q_job_queue (const char* basedir, const char* queue,
 		 FILE* job, const char* workingdir, 
+		 int prio,
 		 int force_mail,
 		 char* fname, size_t s)
 {
-	int lockfd;
+	struct pqueue* pq;
 	int fd;
 	FILE* f;
 	long jobno;
 	char filename[PATH_MAX];
+	char tmpfilename[PATH_MAX];
 	mode_t msk;
 	char* mailname;
 	char* envar;
@@ -655,39 +441,30 @@ int q_job_queue (const char* basedir, const char* queue,
 	sigset_t sm;
 
 	q_cd_job_dir (basedir, queue);
-	lockfd = q_lock_job_file();
-	if ( lockfd < 0 ) 
-		exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
-			 "could not lock %s/%s/" 
-			 SBS_QUEUE_JOB_LOCKFILE, basedir, queue);
-	jobno = q_job_next();
 	q_disable_signals (&sm);
-	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
-	if ( snprintf(fname,s,
-		      "%s/%s/" SBS_QUEUE_JOB_DIR "/" SBS_JOB_FILE_MASK, 
-		      basedir,queue,jobno) >= (int)s) 
+	snprintf(tmpfilename, sizeof(tmpfilename), 
+		 "%u-%u.tmp", getpid(), real_uid);
+	if (snprintf(fname,s,
+		     "%s/%s/" SBS_QUEUE_JOB_DIR "/%s", 
+		     basedir,queue,tmpfilename) >= (int)s) 
 		exit_msg(SBS_EXIT_FAILED, "buffer size too small");
 	q_restore_signals (&sm);
-	msk = umask(0);
 
+	msk = umask(0);
 	PRIV_START();
 	seteuid(real_uid);
 	setegid(daemon_gid);
-	fd = open( filename, O_CREAT | O_EXCL | O_WRONLY,
-		   S_IWUSR);
+	fd = open( tmpfilename, O_CREAT | O_EXCL | O_WRONLY,
+		   S_IWUSR|S_IRUSR);
 	if ( fd < 0 )
 		exit_msg(SBS_EXIT_FAILED,
-			 "could not open job file %s", filename);
+			 "could not open job file %s", tmpfilename);
 	PRIV_END();
-
-	close(lockfd);
 	msk = umask(msk);
-
 	f= fdopen(fd, "w");
 	if ( f == NULL)
 		exit_msg(SBS_EXIT_FAILED,
 			 "could not reopen file %s", filename);	
-
 	/* Get the userid to mail to, first by trying getlogin(),
 	 * then from LOGNAME, finally from getpwuid().
 	 */
@@ -704,11 +481,9 @@ int q_job_queue (const char* basedir, const char* queue,
 	fprintf(f, "#!/bin/sh\n# sbsrun uid=%ld gid=%ld\n# mail %*s %d\n",
 		(long) real_uid, (long) real_gid, MAXLOGNAME - 1, mailname,
 		force_mail);
-
 	/* Write out the umask at the time of invocation
 	 */
 	fprintf(f, "umask %lo\n", (unsigned long)msk);
-
 	for (i=0, envar= environ[i]; envar != NULL; ++i, envar= environ[i]) {
 		size_t k; int export=1;
 		char* envalue= strchr(envar,'=');
@@ -791,12 +566,23 @@ int q_job_queue (const char* basedir, const char* queue,
 			 "input output error in %s", filename);
 	} 
 	fclose(f);
-	/* Set the x bit so that we're ready to start executing
-	 */
-	q_disable_signals(&sm);
-	q_job_status_change (filename, SBS_JOB_QUEUED);
-	fname[0]=0;
-	q_restore_signals(&sm);
+	/* Move the temporary file to its final destination */
+	PRIV_START();
+	pq = pqueue_open_lock_read(".", 1);
+	PRIV_END();
+	if (pq==0) 
+		exit_msg(SBS_EXIT_FAILED,
+			 "could not open job list file"
+			 PQUEUE_JOB_LIST_FILE);
+	jobno=pqueue_enqueue(pq, prio, real_uid);
+	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
+	PRIV_START();
+	if (rename(tmpfilename, filename)<0)
+		exit_msg(SBS_EXIT_FAILED,
+			 "could not open rename %s to %s",
+			 tmpfilename, filename);
+	pqueue_update_close_destroy(pq, 1);
+	PRIV_END();
 	fprintf(stderr, 
 		"Job %s/%ld will be executed using /bin/sh\n", 
 		queue, jobno);
@@ -804,7 +590,6 @@ int q_job_queue (const char* basedir, const char* queue,
 }
 
 pid_t q_exec(const char* basedir, const char* queue,
-	     const char *filename, 
 	     uid_t file_uid, 
 	     gid_t file_gid, 
 	     long jobno, 
@@ -817,8 +602,10 @@ pid_t q_exec(const char* basedir, const char* queue,
 	 * spawns a subshell, then waits for it to complete and sends
 	 * mail to the user.
 	 */
+	struct pqueue* pq;
 	pid_t pid;
-	int fd_out, fd_in;
+	int fd_out, fd_in, r;
+	char filename[PATH_MAX];
 	char mailbuf[LOGNAMESIZE+1], fmt[50];
 	char *mailname = NULL;
 	FILE *stream;
@@ -845,7 +632,6 @@ pid_t q_exec(const char* basedir, const char* queue,
 	struct rusage rus;
 	/* centi secs */
 	long rus_user, rus_sys, rus_elapsed, rus_cpu;
-
 	pid = fork();
 	if ( pid != 0) {
 		if (pid < 0)
@@ -859,19 +645,12 @@ pid_t q_exec(const char* basedir, const char* queue,
 	sigdelset(&msk,SIGTERM);
 	sigdelset(&msk,SIGQUIT);
 	sigprocmask(SIG_SETMASK,&msk,0);
-
+	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
 	q_cd_job_dir(basedir, queue);
 	lockfd=q_lock_active_file (workernum);
 	if ( lockfd < 0 )
 		exit_msg(SBS_EXIT_ACTIVE_LOCK_FAILED, 
 			 "%s worker %i lock failed", queue, workernum);
-
-	if ( q_job_status_change (filename, SBS_JOB_ACTIVE) <0) {
-		exit_msg(SBS_EXIT_EXEC_FAILED,
-			 "could not change job status of %s", 
-			 filename);
-	}
-
 	if (file_gid != daemon_gid)
 		exit_msg(SBS_EXIT_EXEC_FAILED,
 			 "Job %s - daemon gid %ld does not match file gid %ld",
@@ -1063,8 +842,7 @@ pid_t q_exec(const char* basedir, const char* queue,
 	 */
 	close(fd_in);
 	/* close(fd_out); */
-	waitpid(pid, (int *) NULL, 0);
-
+	while ((waitpid(pid, (int *) NULL, 0)<0) && (errno==EINTR));
 #ifdef PAM
 	PRIV_START();
 	pam_setcred(pamh, PAM_DELETE_CRED | PAM_SILENT);
@@ -1095,6 +873,22 @@ pid_t q_exec(const char* basedir, const char* queue,
 	/* Send mail.  Unlink the output file first, so it is deleted after
 	 * the run.
 	 */
+	/* switch back to job dir */
+	q_cd_job_dir (basedir, queue);
+	PRIV_START();
+	pq= pqueue_open_lock_read(".",1);
+	if (pq==NULL)
+		exit_msg(SBS_EXIT_EXEC_FAILED,
+			 "open of " PQUEUE_JOB_LIST_FILE " failed");
+	if ((r=pqueue_remove_active(pq,jobno,daemon_uid))!=0) 
+		exit_msg(SBS_EXIT_EXEC_FAILED,
+			 "removal of job %lu failed %s", jobno, strerror(r));
+	pqueue_update_close_destroy(pq,1);
+	/* delete job file */
+	unlink(filename);
+	PRIV_END();
+	/* switch back to spool dir */
+	q_cd_spool_dir (basedir, queue);
 	stat(filename, &buf);
 	PRIV_START();
 	if (open(filename, O_RDONLY) != STDIN_FILENO)
@@ -1105,7 +899,6 @@ pid_t q_exec(const char* basedir, const char* queue,
 	PRIV_END();
 	/* switch back to job dir */
 	q_cd_job_dir (basedir, queue);
-	q_job_status_change ( filename, SBS_JOB_DONE );
 	if ((buf.st_size != size) || send_mail)	{    
 		stream = fdopen(fd_out,"a");
 		if ( stream ) {

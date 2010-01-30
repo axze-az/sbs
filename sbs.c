@@ -20,6 +20,7 @@
 #include "msg.h"
 #include "privs.h"
 #include "perm.h"
+#include "pqueue.h"
 
 #include <signal.h>
 #include <stdlib.h>
@@ -49,7 +50,9 @@ static void sighdlr(int sig, siginfo_t* info, void* ctx)
 
 int sbs_queue_job(const char* basedir, 
 		  const char* queue, 
-		  FILE* job, int force_mail)
+		  FILE* job, 
+		  int prio,
+		  int force_mail)
 {
 	sigset_t sigm;
 	struct sigaction sa;
@@ -75,7 +78,8 @@ int sbs_queue_job(const char* basedir,
 	sigprocmask(SIG_SETMASK,&sigm,NULL);
 	getcwd(wd,sizeof(wd));
 	q_job_queue (basedir, queue,job,
-		     wd,force_mail,g_namebuf, sizeof(g_namebuf));
+		     wd,
+		     prio, force_mail,g_namebuf, sizeof(g_namebuf));
 	if (q_notify_daemon(basedir, queue)<0) {
 		exit_msg(3,"notify failed, daemon probably not running");
 	}
@@ -108,12 +112,14 @@ usage(void)
 {
 	/* Print usage and exit. */
     fprintf(stderr, 
-	    "usage: sbs -q queue [-f file] [-m]\n"
+	    "usage: sbs -q queue [-p prio] [-m] [-f file]\n"
 	    "       sbs -q queue -c job [job ...]\n"
 	    "       sbs -q queue -d job [job ...]\n"
 	    "       sbs -q queue -l\n"
-	    "       sbs -q queue\n"
-	    "       sbs -V\n");
+	    "       sbs -q queue [-p prio] [-m]\n"
+	    "       sbs -V\n"
+	    "NOTE: %i <= prio <= %i\n",
+	    PQUEUE_PRI_MIN, PQUEUE_PRI_MAX);
     exit(EXIT_FAILURE);
 }
 
@@ -125,10 +131,11 @@ int main(int argc, char** argv)
 	int jobno=-1;
 	int qj=0, dj=0, lj=0, cj=0;
 	int c;
+	int pri=PQUEUE_PRI_DEFAULT;
 	INIT_PRIVS();
 	RELINQUISH_PRIVS();
 
-	while ((c=getopt(argc, argv, "mq:f:d:lc:V")) != -1) {
+	while ((c=getopt(argc, argv, "mq:f:d:lc:Vp:")) != -1) {
 		switch (c) {
 		case 'q':    /* specify queue */
 			queue = optarg;
@@ -155,6 +162,11 @@ int main(int argc, char** argv)
 		case 'V':
 			info_msg(SBS_VERSION);
 			exit(0);
+			break;
+		case 'p':
+			pri = atoi(optarg);
+			if ((pri<PQUEUE_PRI_MIN)|(pri>PQUEUE_PRI_MAX)) 
+				usage();
 			break;
 		case 'h':
 		case '?':
@@ -185,7 +197,7 @@ int main(int argc, char** argv)
 			if ( f == 0) 
 				exit_msg(3, "could not open %s", jobfile);
 		}
-		sbs_queue_job(SBS_QUEUE_DIR, queue, f, force_mail);
+		sbs_queue_job(SBS_QUEUE_DIR, queue, f, pri, force_mail);
 	}
 	if (dj) {
 		sbs_dequeue_job (SBS_QUEUE_DIR, queue, jobno);

@@ -31,11 +31,12 @@ DEFS= \
 CC=gcc
 CXX=g++
 WARN=-Wall -Werror -W -Wunused -Wall
-OPT=-O3 -fexpensive-optimizations  -ffunction-sections -fdata-sections 
-STRIP=-s
+OPT=-g
+#OPT=-O3 -fexpensive-optimizations  -ffunction-sections -fdata-sections 
+#STRIP=-s
 LD=$(CC) $(STRIP)
 CFLAGS=$(STRIP) $(OPT) $(DEFS) -I. $(WARN)
-LDFLAGS= -L. -lsbs -lpam 
+LDFLAGS= -L. -lsbs -lpam -g
 ARFLAGS=rv
 
 all: progs 

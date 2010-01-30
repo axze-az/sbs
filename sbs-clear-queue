@@ -16,7 +16,7 @@ main()
     if [ ! x"$1" = x-q ] ; then
 	usage $0
     fi
-    for i in `sbs -q $2 -l | grep -v -e "^\#" | cut -f 2`; 
+    for i in `sbs -q $2 -l | grep -v -e "^\#" | cut -d ' ' -f 1`; 
     do 
 	sbs -q $2 -d $i; 
     done

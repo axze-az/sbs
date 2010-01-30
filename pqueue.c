@@ -17,6 +17,7 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "privs.h"
+#include "pqueue.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -30,16 +31,11 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define PRI_MAX 100
-#define PRI_MIN 0
-#define PRI_RUN -1
-#define PRI_DEFAULT ((PRI_MAX-PRI_MIN)/2)
 #ifdef TEST
 #define DAEMON_UID 1
 #else
 #define DAEMON_UID daemon_uid
 #endif
-#define JOB_LIST_FILE "joblist.dat"
 
 #define PQUEUE_VER (1<<16|0)
 
@@ -95,7 +91,7 @@ int pqueue_entry_print(FILE* f, const struct pqueue_entry* e,
 		struct tm t;
 		localtime_r(&e->_time.tv_sec,&t);
 		strftime(stime,sizeof(stime), "%F %T", &t);
-                if (e->_pri == PRI_RUN )
+                if (e->_pri == PQUEUE_PRI_RUN )
                         fprintf(f, "%-9i %s.%03u ACTIVE %-32s\n",
                                 e->_id, stime, msec, uname);
                 else
@@ -125,7 +121,6 @@ struct pqueue* pqueue_create(void)
         return q;
 }
 
-static
 void pqueue_destroy(struct pqueue* q)
 {
         free(q->_entries);
@@ -265,10 +260,10 @@ int pqueue_enqueue(struct pqueue* q, int pri, uid_t uid)
 {
         unsigned int id;
         struct pqueue_entry* e;
-        if (pri > PRI_MAX)
-                pri= PRI_MAX;
-        if (pri < PRI_MIN)
-                pri = PRI_MIN;
+        if (pri > PQUEUE_PRI_MAX)
+                pri= PQUEUE_PRI_MAX;
+        if (pri < PQUEUE_PRI_MIN)
+                pri = PQUEUE_PRI_MIN;
         if (q->_head._entry_cnt == q->_alloc_cnt)
                 pqueue_expand(q);
         e= q->_entries + q->_head._entry_cnt;
@@ -287,7 +282,7 @@ void pqueue_remove_entry(struct pqueue* q, size_t pos)
 {
         size_t i;
         --q->_head._entry_cnt;
-        if (q->_entries[pos]._pri == PRI_RUN)
+        if (q->_entries[pos]._pri == PQUEUE_PRI_RUN)
                 ++q->_head._total;
         for (i=pos;i<q->_head._entry_cnt;++i)
                 q->_entries[i]= q->_entries[i+1];
@@ -298,8 +293,8 @@ int pqueue_dequeue(struct pqueue* q)
         int id=-1;
         size_t i=0;
         while (i<q->_head._entry_cnt) {
-                if (q->_entries[i]._pri != PRI_RUN) {
-                        q->_entries[i]._pri = PRI_RUN;
+                if (q->_entries[i]._pri != PQUEUE_PRI_RUN) {
+                        q->_entries[i]._pri = PQUEUE_PRI_RUN;
                         id= q->_entries[i]._id;
                         break;
                 }
@@ -308,12 +303,13 @@ int pqueue_dequeue(struct pqueue* q)
         return id;
 }
 
-int pqueue_remove(struct pqueue* q, int id, uid_t uid)
+int pqueue_remove_active(struct pqueue* q, int id, uid_t uid)
 {
         int r=ENOENT;
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
-                if (q->_entries[i]._id == id) {
+                if ((q->_entries[i]._pri== PQUEUE_PRI_RUN) &&
+		    (q->_entries[i]._id == id)) {
                         if ((uid==0) || 
                             (uid==DAEMON_UID) ||
                             (uid==q->_entries[i]._uid)) {
@@ -328,6 +324,68 @@ int pqueue_remove(struct pqueue* q, int id, uid_t uid)
         return r;
 }
 
+int pqueue_remove(struct pqueue* q, int id, uid_t uid)
+{
+        int r=ENOENT;
+        size_t i;
+        for (i=0;i<q->_head._entry_cnt;++i) {
+                if (q->_entries[i]._id == id) {
+			if (q->_entries[i]._pri == PQUEUE_PRI_RUN) {
+				r= EPERM;
+				break;
+			} 
+			if ((uid==0) || 
+			    (uid==DAEMON_UID) ||
+			    (uid==q->_entries[i]._uid)) {
+				pqueue_remove_entry(q,i);
+				r=0;
+				break;
+			}
+			r=EPERM;
+                        break;
+                }
+        }
+        return r;
+}
+
+int pqueue_check_jobid(const struct pqueue* q, int id, uid_t uid)
+{
+        int r=ENOENT;
+        size_t i;
+        for (i=0;i<q->_head._entry_cnt;++i) {
+                if (q->_entries[i]._id == id) {
+                        if ((uid==0) || 
+                            (uid==DAEMON_UID) ||
+                            (uid==q->_entries[i]._uid)) {
+                                r=0;
+                        } else {
+                                r=EPERM;
+                        }
+                        break;
+                }
+        }
+        return r;
+}
+
+int pqueue_get_job_uid(const struct pqueue* q, int id, uid_t* uid)
+{
+        int r=ENOENT;
+        size_t i;
+        for (i=0;i<q->_head._entry_cnt;++i) {
+                if (q->_entries[i]._id == id) {
+			*uid = q->_entries[i]._uid;
+			r=0;
+			break;
+                }
+        }
+        return r;
+}
+
+int pqueue_get_entry_cnt(const struct pqueue* q)
+{
+	return q->_head._entry_cnt;
+}
+
 struct pqueue* pqueue_open_lock_read(const char* path, int rw)
 {
         struct flock fl;
@@ -335,9 +393,9 @@ struct pqueue* pqueue_open_lock_read(const char* path, int rw)
         int fd = -1;
         int lr = 0;
         int ofl= rw ? O_RDWR : O_RDONLY;
-        size_t s= strlen(path)+strlen(JOB_LIST_FILE)+2;
+        size_t s= strlen(path)+strlen(PQUEUE_JOB_LIST_FILE)+2;
         char* fname= alloca(s);
-        snprintf(fname, s, "%s/%s", path, JOB_LIST_FILE);
+        snprintf(fname, s, "%s/%s", path, PQUEUE_JOB_LIST_FILE);
         while (((fd=open(fname,  ofl))<0) && (errno==EINTR));
         if (fd < 0)
                 goto err_null;
@@ -378,15 +436,22 @@ int pqueue_update_close_destroy(struct pqueue* pq, int rw)
         return 0;
 }
 
+int pqueue_close(struct pqueue* pq)
+{
+        while ((close(pq->_fd)<0) && (errno==EINTR)); 
+	pq->_fd = -1;
+	return 0;
+}
+
 int pqueue_fs_init(const char* path)
 {
         mode_t m=umask(0);
-        size_t s=strlen(path)+strlen(JOB_LIST_FILE)+2;
+        size_t s=strlen(path)+strlen(PQUEUE_JOB_LIST_FILE)+2;
         char* fname=alloca(s);
         int fd,r=1;
         struct pqueue* pq=NULL;
         off_t o;
-        snprintf(fname, s, "%s/%s", path, JOB_LIST_FILE);
+        snprintf(fname, s, "%s/%s", path, PQUEUE_JOB_LIST_FILE);
         unlink(fname);
         fd = open(fname, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
         umask(m);
@@ -477,13 +542,13 @@ int main(int argc, char** argv)
                 if (argc >= 3 )
                         h= strtol(argv[2],0,0);
                 else
-                        h= PRI_DEFAULT;
+                        h= PQUEUE_PRI_DEFAULT;
                 qadd(h);
         }
         if (strcmp(argv[1],"madd")==0) {
                 int i;
                 for (i=0;i<10000;++i)
-                        qadd(PRI_DEFAULT);
+                        qadd(PQUEUE_PRI_DEFAULT);
         }
         if (strcmp(argv[1],"del")==0) {
                 if (argc < 3 )

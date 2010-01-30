@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pwd.h>
+#include <time.h>
+#include <sys/time.h>
 
 #define PRI_MAX 100
 #define PRI_MIN 0
@@ -19,6 +21,7 @@
 struct pqueue_entry {
         int _id;
         int _pri;
+	struct timeval _time;
         uid_t _uid;
 };
 
@@ -83,12 +86,17 @@ int pqueue_entry_print(FILE* f, const struct pqueue_entry* e,
 {
         if ((uid == 0) || (uid == DAEMON_UID) || (uid == e->_uid)) {
                 char* uname = uid_2_name(e->_uid);
+		char stime[128];
+		unsigned msec= (e->_time.tv_usec/1000);
+		struct tm t;
+		localtime_r(&e->_time.tv_sec,&t);
+		strftime(stime,sizeof(stime), "%F %T", &t);
                 if (e->_pri == PRI_RUN )
-                        fprintf(f, "%-9i ACTIVE %-32s\n",
-                                e->_id, uname);
+                        fprintf(f, "%-9i %s.%03u ACTIVE %-32s\n",
+                                e->_id, stime, msec, uname);
                 else
-                        fprintf(f, "%-9i %6i %-32s\n",
-                                e->_id, e->_pri, uname);
+                        fprintf(f, "%-9i %s.%03u %6i %-32s\n",
+                                e->_id, stime, msec, e->_pri, uname);
                 free(uname);
         }
         return 0;
@@ -138,17 +146,22 @@ int pqueue_next_id(struct pqueue* q)
 
 int pqueue_cmp(const void* va, const void* vb)
 {
-        const struct pqueue_entry* b=(const struct pqueue_entry*)va;
-        const struct pqueue_entry* a=(const struct pqueue_entry*)vb;
-        if (a->_pri < b->_pri)
-                return 1;
-        if (a->_pri > b->_pri)
-                return -1;
-        if (a->_id < b->_id)
-                return 1;
-        if (a->_id > b->_id)
-                return -1;
-        return 0;
+        const struct pqueue_entry* a=(const struct pqueue_entry*)va;
+        const struct pqueue_entry* b=(const struct pqueue_entry*)vb;
+	int d=0;
+	do {
+		d=a->_pri-b->_pri;
+		if (d)
+			break;
+		d= a->_time.tv_sec - b->_time.tv_sec;
+		if (d) 
+			break;
+		d= a->_time.tv_usec - b->_time.tv_usec;
+		if (d)
+			break;
+		d= a->_id - b->_id;
+	} while (0);
+	return d;
 }
 
 static int pqueue_read_entries(int fd, struct pqueue* pq)
@@ -231,8 +244,8 @@ int pqueue_print(FILE* f, const struct pqueue* q, uid_t uid)
                         q->_head._ver & 0xffff,
                         q->_head._id, q->_head._total, q->_head._entry_cnt);
                 if (q->_head._entry_cnt)
-                        fprintf(f, "# %-7s %6s %-32s\n",
-                                "job-id", "prio", "user");
+                        fprintf(f, "# %-7s %-23s %6s %-32s\n",
+                                "job-id", "queue time", "prio", "user");
         }
         for (i=0;i<q->_head._entry_cnt;++i)
                 pqueue_entry_print(f,q->_entries+i, uid);
@@ -253,6 +266,7 @@ int pqueue_enqueue(struct pqueue* q, int pri, uid_t uid)
         e->_pri = pri;
         e->_id = id = pqueue_next_id(q);
         e->_uid = uid;
+	gettimeofday(&e->_time,0);
         ++q->_head._entry_cnt;
         qsort(q->_entries, q->_head._entry_cnt, sizeof(struct pqueue_entry),
               pqueue_cmp);
@@ -482,6 +496,6 @@ int main(int argc, char** argv)
 /*
  * Local variables:
  * mode: c
- * compile-command: "make CFLAGS=\"-Wall -DTEST -g\" pri_q"
+ * compile-command: "make CFLAGS=\"-Wall -DTEST -g\" pqueue"
  * end:
  */

@@ -33,6 +33,9 @@ extern
 int pqueue_remove_active(struct pqueue* q, int id, uid_t uid);
 
 extern
+int pqueue_reset_active(struct pqueue* q, int id, uid_t uid);
+
+extern
 int pqueue_dequeue(struct pqueue* q);
 
 extern

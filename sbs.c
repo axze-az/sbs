@@ -107,14 +107,20 @@ int sbs_cat_job(const char* basedir,
 	return q_job_cat(basedir, queue, jobid,stdout);
 }
 
+int sbs_reset_job(const char* basedir, const char* queue, long jobid)
+{
+	return q_job_reset(basedir, queue, jobid);
+}
+
 void
 usage(void)
 {
 	/* Print usage and exit. */
     fprintf(stderr, 
 	    "usage: sbs -q queue [-p prio] [-m] [-f file]\n"
-	    "       sbs -q queue -c job [job ...]\n"
-	    "       sbs -q queue -d job [job ...]\n"
+	    "       sbs -q queue -c job\n"
+	    "       sbs -q queue -d job\n"
+	    "       sbs -q queue -r job\n"
 	    "       sbs -q queue -l\n"
 	    "       sbs -q queue [-p prio] [-m]\n"
 	    "       sbs -V\n"
@@ -129,13 +135,13 @@ int main(int argc, char** argv)
 	const char* jobfile =0;
 	const char* queue=0;
 	int jobno=-1;
-	int qj=0, dj=0, lj=0, cj=0;
+	int qj=0, dj=0, lj=0, cj=0, rj=0;
 	int c;
 	int pri=PQUEUE_PRI_DEFAULT;
 	INIT_PRIVS();
 	RELINQUISH_PRIVS();
 
-	while ((c=getopt(argc, argv, "mq:f:d:lc:Vp:")) != -1) {
+	while ((c=getopt(argc, argv, "mr:q:f:d:lc:Vp:")) != -1) {
 		switch (c) {
 		case 'q':    /* specify queue */
 			queue = optarg;
@@ -168,6 +174,10 @@ int main(int argc, char** argv)
 			if ((pri<PQUEUE_PRI_MIN)|(pri>PQUEUE_PRI_MAX)) 
 				usage();
 			break;
+		case 'r':
+			rj=1;
+			jobno= atoi(optarg);
+			break;
 		case 'h':
 		case '?':
 			usage();
@@ -176,7 +186,7 @@ int main(int argc, char** argv)
 	}
 	if (queue == 0)
 		usage();
-	switch (dj +lj +cj) {
+	switch (dj +lj +cj+rj) {
 	case 0:
 		qj=1;
 		break;
@@ -207,6 +217,9 @@ int main(int argc, char** argv)
 	}
 	if (lj) {
 		sbs_list_job(SBS_QUEUE_DIR,queue);
+	}
+	if (rj) {
+		sbs_reset_job(SBS_QUEUE_DIR, queue, jobno);
 	}
 	return 0;
 }

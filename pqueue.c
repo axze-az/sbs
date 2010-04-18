@@ -324,6 +324,27 @@ int pqueue_remove_active(struct pqueue* q, int id, uid_t uid)
         return r;
 }
 
+int pqueue_reset_active(struct pqueue* q, int id, uid_t uid)
+{
+	size_t i;
+	int r=ENOENT;
+	if ((uid!=0) && (uid!=DAEMON_UID))
+		return EPERM;
+	for (i=0; i< q->_head._entry_cnt; ++i) {
+                if (q->_entries[i]._id == id) {
+			if (q->_entries[i]._pri== PQUEUE_PRI_RUN) {
+				q->_entries[i]._pri= PQUEUE_PRI_MIN;
+				r=0;
+				break;
+			} else {
+				r=EINVAL;
+				break;
+			}
+		}
+	}
+	return r;
+}
+
 int pqueue_remove(struct pqueue* q, int id, uid_t uid)
 {
         int r=ENOENT;

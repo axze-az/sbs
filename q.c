@@ -601,7 +601,7 @@ int q_job_reset(const char* basedir, const char* queue, long jobno)
 		exit_msg(SBS_EXIT_FAILED,
 			 "could not reset %s/%ld %s",
 			 queue, jobno, strerror(r));
-	PRIV_START()
+	PRIV_START();
 	pqueue_update_close_destroy(pq, 1);
 	PRIV_END();
 	return r;

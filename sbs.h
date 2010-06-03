@@ -1,6 +1,6 @@
 /* 
  *  sbs.h - simple batch system, main header
- *  Copyright (C) 2008  Axel Zeuner
+ *  Copyright (C) 2008-2010  Axel Zeuner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,18 +25,17 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.4.4"
+#define SBS_VERSION "simple batch system V-0.5.0"
 /*
  * queue layout: 
- * basedir/queue/jobs/.active.0
- *                   /.active.1
+ * basedir/queue/jobs/
  *		     /joblist.dat
  *              /spool
  *
  */
 #define SBS_QUEUE_JOB_DIR		"jobs"
 #define SBS_QUEUE_SPOOL_DIR		"spool"
-#define SBS_QUEUE_ACTIVE_LOCKFILE	".active"
+/* #define SBS_QUEUE_ACTIVE_LOCKFILE	".active" */
 
 #define SBS_EXIT_FAILED			3
 #define SBS_EXIT_CD_FAILED		31
@@ -68,7 +67,9 @@ extern int q_write_pidfile(const char* qname);
 
 
 extern int q_lock_file(const char* fname, int wait);
+#if 0
 extern int q_lock_active_file(int num);
+#endif
 
 extern int q_job_queue (const char* basedir, const char* queue,
 			FILE* job, const char* workingdir, 

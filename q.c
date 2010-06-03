@@ -1,6 +1,6 @@
 /* 
  *  q.c - simple batch system queue implementation
- *  Copyright (C) 2008  Axel Zeuner
+ *  Copyright (C) 2008-2010  Axel Zeuner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -319,7 +319,7 @@ int q_lock_file(const char* fname, int wait)
 	PRIV_END();
 	return lockfd;
 }
-
+#if 0
 int q_lock_active_file(int num)
 {
 	/* current working directory should be JOB_DIR, make sure that
@@ -329,7 +329,7 @@ int q_lock_active_file(int num)
 		 SBS_QUEUE_ACTIVE_LOCKFILE ".%d", num);
 	return q_lock_file (fname, 0);
 }
-
+#endif
 
 int q_job_list(const char* basedir, const char* queue,
 	       FILE* out)
@@ -635,7 +635,9 @@ pid_t q_exec(const char* basedir, const char* queue,
 	uid_t uid;
 	uid_t gid;
 	struct timeval starttime,endtime;
+#if 0
 	int lockfd;
+#endif
 	char subject[256];
 	sigset_t msk;
 #ifdef PAM
@@ -665,15 +667,18 @@ pid_t q_exec(const char* basedir, const char* queue,
 	sigprocmask(SIG_SETMASK,&msk,0);
 	snprintf(filename, sizeof(filename), SBS_JOB_FILE_MASK, jobno);
 	q_cd_job_dir(basedir, queue);
+#if 0
 	lockfd=q_lock_active_file (workernum);
 	if ( lockfd < 0 )
 		exit_msg(SBS_EXIT_ACTIVE_LOCK_FAILED, 
 			 "%s worker %i lock failed", queue, workernum);
+#endif
 	if (file_gid != daemon_gid)
 		exit_msg(SBS_EXIT_EXEC_FAILED,
 			 "Job %s - daemon gid %ld does not match file gid %ld",
 			 filename, (long)file_gid, (long)daemon_gid);
-	info_msg("executing %s/%ld from %s", queue, jobno, filename); 
+	info_msg("executing %s/%ld from %s (worker %i)", 
+		 queue, jobno, filename, workernum); 
 	/* Let's see who we mail to.  Hopefully, we can read it from
 	 * the command file; if not, send it to the owner, or, failing that,
 	 * to root.
@@ -810,9 +815,9 @@ pid_t q_exec(const char* basedir, const char* queue,
 	{
 		char *nul = NULL;
 		char **nenvp = &nul;
-
+#if 0
 		close(lockfd);
-
+#endif
 		/* Set up things for the child; we want standard input
 		 * from the input file, and standard output and error
 		 * sent to our output file.

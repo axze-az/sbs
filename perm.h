@@ -1,6 +1,6 @@
 /* 
  *  perm.h - header for sbs(1)
- *  Copyright (C) 2007 Axel Zeuner
+ *  Copyright (C) 2007-2010 Axel Zeuner
  *
  *  perm.h -  header for at(1)
  *  Copyright (C) 1994  Thomas Koenig

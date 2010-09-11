@@ -166,7 +166,7 @@ int pqueue_cmp(const void* va, const void* vb)
 			else
 				d = +1;
 			break;
-		}
+		} 
  		/* mask out the run bit */
 		d= (a->_pri & ~PQUEUE_RUN_BIT) - (b->_pri & ~PQUEUE_RUN_BIT);
 		if (d)
@@ -356,6 +356,10 @@ int pqueue_reset_active(struct pqueue* q, int id, uid_t uid)
 			}
 		}
 	}
+	if (r==0)
+		qsort(q->_entries, q->_head._entry_cnt, 
+		      sizeof(struct pqueue_entry),
+		      pqueue_cmp);
 	return r;
 }
 

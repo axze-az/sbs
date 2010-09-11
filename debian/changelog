@@ -1,3 +1,9 @@
+sbs (0.5.2) unstable; urgency=low
+
+  * sort the queue after resetting an active job
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Tue, 11 Sep 2010 12:00:00 +0100
+
 sbs (0.5.1) unstable; urgency=low
 
   * keep the priority of active jobs to allow restart with the same

@@ -689,11 +689,17 @@ pid_t q_exec(const char* basedir, const char* queue,
 			 "Userid %lu not found - aborting job %s",
 			 (unsigned long) file_uid, filename);
 #ifdef PAM
+#if 1
+	/* use a global pam configuration for now */
+	memcpy(pam_app, "sbs", 4);
+#else
+	/* per queue pam configuration */
 	if (snprintf(pam_app,sizeof(pam_app),"sbs-%s", queue) >=
 	    (int)sizeof(pam_app)) {
 		exit_msg(SBS_EXIT_PAM_FAILED,
 			 "queue %s: name too long", queue);
 	}
+#endif
 	PRIV_START();
 	pam_err = pam_start(pam_app, pentry->pw_name, &pamconv, &pamh);
 	/* if we have no config for queue, use the global one */
@@ -786,8 +792,14 @@ pid_t q_exec(const char* basedir, const char* queue,
 
 	/* switch to spool dir */
 	q_cd_spool_dir (basedir, queue);
-	/* Create a file to hold the output of the job we are about to run.
-	 * Write the mail header.
+	/* 
+	 * sanity: if we restart jobs, there may be old stale output
+	 * files, because the name is job-id bases.
+	 */
+	unlink(filename);
+	/* 
+	 * Create a file to hold the output of the job we are about to
+	 * run. Write the mail header.
 	 */    
 	if((fd_out=open(filename,
 			O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR)) < 0)

@@ -25,7 +25,8 @@ struct pqueue;
 
 #define PQUEUE_PRI_MAX 100
 #define PQUEUE_PRI_MIN 0
-#define PQUEUE_PRI_RUN -1
+#define PQUEUE_RUN_BIT (1<<((sizeof(unsigned)*8)-1))
+//#define PQUEUE_PRI_RUN -1
 #define PQUEUE_PRI_DEFAULT ((PQUEUE_PRI_MAX-PQUEUE_PRI_MIN)/2)
 #define PQUEUE_JOB_LIST_FILE "joblist.dat"
 

@@ -31,7 +31,8 @@ DEFS= \
 CC=gcc
 CXX=g++
 WARN=-Wall -Werror -W -Wunused -Wall
-OPT=-O3 -fexpensive-optimizations  -ffunction-sections -fdata-sections 
+OPT=-O3 -fomit-frame-pointer -fexpensive-optimizations \
+-ffunction-sections -fdata-sections 
 STRIP=-s
 LD=$(CC) $(STRIP)
 CFLAGS=$(STRIP) $(OPT) $(DEFS) -I. $(WARN)

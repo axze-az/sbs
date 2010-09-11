@@ -91,12 +91,14 @@ int pqueue_entry_print(FILE* f, const struct pqueue_entry* e,
 		struct tm t;
 		localtime_r(&e->_time.tv_sec,&t);
 		strftime(stime,sizeof(stime), "%F %T", &t);
-                if (e->_pri == PQUEUE_PRI_RUN )
+                if ((e->_pri & PQUEUE_RUN_BIT)) {
                         fprintf(f, "%-9i %s.%03u ACTIVE %-32s\n",
                                 e->_id, stime, msec, uname);
-                else
-                        fprintf(f, "%-9i %s.%03u %6i %-32s\n",
-                                e->_id, stime, msec, e->_pri, uname);
+                } else {
+                        fprintf(f, "%-9i %s.%03u %6u %-32s\n",
+                                e->_id, stime, msec, 
+				e->_pri & ~PQUEUE_RUN_BIT, uname);
+		}
                 free(uname);
         }
         return 0;
@@ -154,7 +156,19 @@ int pqueue_cmp(const void* va, const void* vb)
         const struct pqueue_entry* b=(const struct pqueue_entry*)vb;
 	int d=0;
 	do {
-		d=a->_pri-b->_pri;
+		/* running entries are smaller than others */
+		/* 0x80000000 - 0x80000000 == 0 */
+		/* 0x80000000 - 0x00000000 == 0x80000000 < 0 */
+		/* 0x00000000 - 0x80000000 == 0x80000000 < 0 */
+		if ((a->_pri & PQUEUE_RUN_BIT) != (b->_pri & PQUEUE_RUN_BIT)) {
+			if (a->_pri & PQUEUE_RUN_BIT)
+				d = -1;
+			else
+				d = +1;
+			break;
+		}
+ 		/* mask out the run bit */
+		d= (a->_pri & ~PQUEUE_RUN_BIT) - (b->_pri & ~PQUEUE_RUN_BIT);
 		if (d)
 			break;
 		d= a->_time.tv_sec - b->_time.tv_sec;
@@ -282,7 +296,7 @@ void pqueue_remove_entry(struct pqueue* q, size_t pos)
 {
         size_t i;
         --q->_head._entry_cnt;
-        if (q->_entries[pos]._pri == PQUEUE_PRI_RUN)
+        if ((q->_entries[pos]._pri & PQUEUE_RUN_BIT)!=0)
                 ++q->_head._total;
         for (i=pos;i<q->_head._entry_cnt;++i)
                 q->_entries[i]= q->_entries[i+1];
@@ -293,8 +307,8 @@ int pqueue_dequeue(struct pqueue* q)
         int id=-1;
         size_t i=0;
         while (i<q->_head._entry_cnt) {
-                if (q->_entries[i]._pri != PQUEUE_PRI_RUN) {
-                        q->_entries[i]._pri = PQUEUE_PRI_RUN;
+                if ((q->_entries[i]._pri & PQUEUE_RUN_BIT) == 0) {
+                        q->_entries[i]._pri |= PQUEUE_RUN_BIT;
                         id= q->_entries[i]._id;
                         break;
                 }
@@ -308,7 +322,7 @@ int pqueue_remove_active(struct pqueue* q, int id, uid_t uid)
         int r=ENOENT;
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
-                if ((q->_entries[i]._pri== PQUEUE_PRI_RUN) &&
+                if (((q->_entries[i]._pri & PQUEUE_RUN_BIT) != 0) &&
 		    (q->_entries[i]._id == id)) {
                         if ((uid==0) || 
                             (uid==DAEMON_UID) ||
@@ -332,8 +346,8 @@ int pqueue_reset_active(struct pqueue* q, int id, uid_t uid)
 		return EPERM;
 	for (i=0; i< q->_head._entry_cnt; ++i) {
                 if (q->_entries[i]._id == id) {
-			if (q->_entries[i]._pri== PQUEUE_PRI_RUN) {
-				q->_entries[i]._pri= PQUEUE_PRI_MIN;
+			if ((q->_entries[i]._pri & PQUEUE_RUN_BIT)!=0) {
+				q->_entries[i]._pri &= ~PQUEUE_RUN_BIT;
 				r=0;
 				break;
 			} else {
@@ -351,7 +365,7 @@ int pqueue_remove(struct pqueue* q, int id, uid_t uid)
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
                 if (q->_entries[i]._id == id) {
-			if (q->_entries[i]._pri == PQUEUE_PRI_RUN) {
+			if ((q->_entries[i]._pri & PQUEUE_RUN_BIT)!=0) {
 				r= EPERM;
 				break;
 			} 

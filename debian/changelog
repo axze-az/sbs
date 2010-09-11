@@ -1,3 +1,12 @@
+sbs (0.5.1) unstable; urgency=low
+
+  * keep the priority of active jobs to allow restart with the same
+    priority
+  * unlink job output files because of possible restart
+  * use one global pam configuration file: /etc/pam.d/sbs
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Tue, 08 Sep 2010 08:40:00 +0100
+
 sbs (0.5.0) unstable; urgency=low
 
   * delete worker lock file

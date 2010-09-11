@@ -15,7 +15,6 @@ configure-stamp:
 # Add here commands to configure the package.
 	touch configure-stamp
 
-
 build: build-stamp
 
 build-stamp: configure-stamp 
@@ -24,14 +23,12 @@ build-stamp: configure-stamp
 # Add here commands to compile the package.
 	$(MAKE) PREFIX=""
 # docbook-to-man debian/sbs.sgml > sbs.1
-
 	touch $@
 
 clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp configure-stamp
-
 # Add here commands to clean up after the build process.
 	$(MAKE) clean
 	$(RM) $(CURDIR)/debian/init.d
@@ -42,7 +39,7 @@ clean:
 install: build
 	dh_testdir
 	dh_testroot
-	dh_clean -k 
+	dh_prep
 	dh_installdirs
 
 # Add here commands to install the package into debian/sbs.

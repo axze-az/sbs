@@ -30,7 +30,7 @@ DEFS= \
 
 CC=gcc
 CXX=g++
-WARN=-Wall -Werror -W -Wunused -Wall
+WARN=-Wall -Werror -W -Wunused 
 OPT=-O3 -fomit-frame-pointer -fexpensive-optimizations \
 -ffunction-sections -fdata-sections 
 STRIP=-s

@@ -47,9 +47,8 @@ int msg(int prio, const char* fmt, ...)
 int exit_msg(int code, const char* fmt, ...)
 {
 	va_list va;
-	int r;
 	va_start(va,fmt);
-	r=msg_va(LOG_ERR, fmt, va);
+	msg_va(LOG_ERR, fmt, va);
 	va_end(va);
 	exit(code);
 }

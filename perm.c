@@ -1,6 +1,6 @@
 /* 
  *  perm.c changed for sbs 
- *  (C) 2007-2010 Axel Zeuner
+ *  (C) 2007-2011 Axel Zeuner
  *  perm.c - check user permission for at(1)
  *  Copyright (C) 1994  Thomas Koenig
  *

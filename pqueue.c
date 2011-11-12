@@ -1,6 +1,6 @@
 /* 
  *  pqueue.c - simple batch system queue implementation
- *  Copyright (C) 2010 Axel Zeuner
+ *  Copyright (C) 2010-2011 Axel Zeuner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -65,12 +65,11 @@ char* uid_2_name(uid_t uid)
 {
         char* b=NULL;
         char* uname=0;
-        int r;
         size_t s= sysconf(_SC_GETPW_R_SIZE_MAX);
         struct passwd pwbuf;
         struct passwd* ppw;
         b= alloca(s);
-        r= getpwuid_r(uid, &pwbuf, b, s, &ppw);
+        getpwuid_r(uid, &pwbuf, b, s, &ppw);
         if (ppw) {
                 uname= strdup(ppw->pw_name);
         } else {

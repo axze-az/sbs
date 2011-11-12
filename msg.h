@@ -1,6 +1,6 @@
 /* 
  *  msg.h - header containing message functions
- *  Copyright (C) 2008-2010  Axel Zeuner
+ *  Copyright (C) 2008-2011  Axel Zeuner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

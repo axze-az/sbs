@@ -1,3 +1,9 @@
+sbs (0.5.3) unstable; urgency=low
+
+  * fix compile errors with recent compilers
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 12 Nov 2011 12:00:00 +0100
+
 sbs (0.5.2) unstable; urgency=low
 
   * sort the queue after resetting an active job

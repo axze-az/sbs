@@ -62,7 +62,7 @@ sbs-list-queues: sbs-list-queues.in
 	chmod +x $@
 
 clean:
-	-$(RM) *.o $(PROGS) sbs.cron libsbs.a
+	-$(RM) *.o $(PROGS) sbs.cron libsbs.a pqueue
 
 install: all 
 	mkdir -p ${IROOT}/${BIN_DIR}

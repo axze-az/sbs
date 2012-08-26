@@ -1,3 +1,9 @@
+sbs (0.5.5) unstable; urgency=low
+
+  * corrected the version number
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sun, 26 Aug 2012 09:30:00 +0200
+
 sbs (0.5.4) unstable; urgency=low
 
   * changed RUN_DIR from /var/run to /run

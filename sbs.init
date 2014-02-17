@@ -56,10 +56,10 @@ status_one()
         if [ $? -eq 0 ] ; then
             echo "sbsd for queue $1 is running"
         else
-            echo "sbds for queue $1 is not running"
+            echo "sbsd for queue $1 is not running"
         fi
     else
-        echo "sbds for queue $1 is not running"
+        echo "sbsd for queue $1 is not running"
     fi
 }
 
@@ -103,11 +103,11 @@ start1()
 start() 
 {
     if [ -z "$1" ] ; then
-	echo "starting the simple batch system"
+        echo "starting the simple batch system"
         for i in $CONFIG_PATH/*.conf ; do
             start1 `basename $i .conf` 
         done
-	echo "done."
+        echo "done."
     else
         start1 $1
     fi
@@ -133,11 +133,11 @@ stop1()
 stop() 
 {
     if [ -z "$1" ] ; then
-	echo "stopping the simple batch system"
+        echo "stopping the simple batch system"
         for i in $CONFIG_PATH/*.conf ; do
             stop1 `basename $i .conf` 
         done
-	echo "done."
+        echo "done."
     else
         stop1 $1
     fi
@@ -147,7 +147,7 @@ restart()
 {
     stop $1
     start $1
-}	
+}       
 
 main()
 {

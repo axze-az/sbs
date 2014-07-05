@@ -25,29 +25,29 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.5.5"
+#define SBS_VERSION "simple batch system V-0.5.7"
 /*
  * queue layout: 
  * basedir/queue/jobs/
- *		     /joblist.dat
+ *                   /joblist.dat
  *              /spool
  *
  */
-#define SBS_QUEUE_JOB_DIR		"jobs"
-#define SBS_QUEUE_SPOOL_DIR		"spool"
-/* #define SBS_QUEUE_ACTIVE_LOCKFILE	".active" */
+#define SBS_QUEUE_JOB_DIR               "jobs"
+#define SBS_QUEUE_SPOOL_DIR             "spool"
+/* #define SBS_QUEUE_ACTIVE_LOCKFILE    ".active" */
 
-#define SBS_EXIT_FAILED			3
-#define SBS_EXIT_CD_FAILED		31
-#define SBS_EXIT_ACTIVE_LOCK_FAILED	32
-#define SBS_EXIT_JOB_LOCK_FAILED	33
-#define SBS_EXIT_EXEC_FAILED		34
-#define SBS_EXIT_PRIVS_FAILED		35
-#define SBS_EXIT_PAM_FAILED		36
+#define SBS_EXIT_FAILED                 3
+#define SBS_EXIT_CD_FAILED              31
+#define SBS_EXIT_ACTIVE_LOCK_FAILED     32
+#define SBS_EXIT_JOB_LOCK_FAILED        33
+#define SBS_EXIT_EXEC_FAILED            34
+#define SBS_EXIT_PRIVS_FAILED           35
+#define SBS_EXIT_PAM_FAILED             36
 
-#define SBS_JOB_QUEUED		1
-#define SBS_JOB_ACTIVE		2
-#define SBS_JOB_DONE		3
+#define SBS_JOB_QUEUED          1
+#define SBS_JOB_ACTIVE          2
+#define SBS_JOB_DONE            3
 
 extern int q_cd_dir(const char* basedir, const char* qname);
 extern int q_cd_job_dir(const char* basedir, const char* qname);
@@ -72,22 +72,22 @@ extern int q_lock_active_file(int num);
 #endif
 
 extern int q_job_queue (const char* basedir, const char* queue,
-			FILE* job, const char* workingdir, 
-			int prio, int force_mail,
-			char* fname, size_t s);
+                        FILE* job, const char* workingdir, 
+                        int prio, int force_mail,
+                        char* fname, size_t s);
 extern int q_job_dequeue(const char* basedir, const char* queue, long jobid);
 extern int q_job_cat(const char* basedir, const char* queue,
-		     long jobid, FILE* out);
+                     long jobid, FILE* out);
 extern int q_job_list(const char* basedir, const char* queue,
-		      FILE* out);
+                      FILE* out);
 extern int q_job_reset(const char* basedir, const char* queue, long jobid);
 
 extern pid_t q_exec(const char* basedir, 
-		    const char* qname, 
-		    uid_t file_uid, gid_t file_gid,
-		    long jobno,
-		    int nice, 
-		    int workernum,
-		    int fd2close);
+                    const char* qname, 
+                    uid_t file_uid, gid_t file_gid,
+                    long jobno,
+                    int nice, 
+                    int workernum,
+                    int fd2close);
 
 #endif

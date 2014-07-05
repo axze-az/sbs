@@ -15,7 +15,7 @@
 # description:  Simple batch system daemons
 #
 # processname: sbsd
-# pidfile: /var/run/sbsd-*.pid
+# xpidfile: /var/run/sbsd-*.pid
 #
 #set -x 
 
@@ -162,7 +162,7 @@ status1()
 status()
 {
     if [ -z "$1" ] ; then
-	echo "checking the simple batch system"
+        echo "checking the simple batch system"
         for i in $CONFIG_PATH/*.conf ; do
             status1 `basename $i .conf` 
         done
@@ -190,9 +190,9 @@ main()
         stop)
             stop $2
             ;;
-	status)
-	    status $2
-	    ;;
+        status)
+            status $2
+            ;;
         reload|restart)
             restart $2
             ;;

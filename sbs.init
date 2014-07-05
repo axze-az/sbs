@@ -143,6 +143,34 @@ stop()
     fi
 }
 
+# $1 name of a configuration
+status1()
+{
+    if [ -f $CONFIG_PATH/$1.conf ] ; then
+        QUEUE=''
+        . $CONFIG_PATH/$1.conf
+        if [ -n $QUEUE ] ; then
+            status_one $QUEUE
+        else
+            echo "Sorry no QUEUE defined in $CONFIG_PATH/$1.conf"
+        fi 
+    else
+        echo "Sorry, $CONFIG_PATH/$1.conf does not exist"
+    fi
+}
+
+status()
+{
+    if [ -z "$1" ] ; then
+	echo "checking the simple batch system"
+        for i in $CONFIG_PATH/*.conf ; do
+            status1 `basename $i .conf` 
+        done
+        echo "done."
+    fi
+}
+
+
 restart() 
 {
     stop $1
@@ -162,6 +190,9 @@ main()
         stop)
             stop $2
             ;;
+	status)
+	    status $2
+	    ;;
         reload|restart)
             restart $2
             ;;

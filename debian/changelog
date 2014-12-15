@@ -1,3 +1,10 @@
+sbs (0.6.3) unstable; urgency=low
+
+  * only retain variables whose name consists of alphanumerics and underscores,
+    variables may not start with a digit
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Mon, 15 Dec 2014 12:01:00 +0100
+
 sbs (0.6.2) unstable; urgency=low
 
   * add require pam_loginuid.so to pam.conf

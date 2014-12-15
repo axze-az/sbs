@@ -490,12 +490,31 @@ int q_job_queue (const char* basedir, const char* queue,
         for (i=0, envar= environ[i]; envar != NULL; ++i, envar= environ[i]) {
                 size_t k; int export=1;
                 char* envalue= strchr(envar,'=');
-                if ( envalue == NULL)
+                char* p= envar;
+                if (envalue == NULL)
                         continue;
                 ++envalue;
                 for (k=0;k<sizeof(no_export)/sizeof(no_export[0]); ++k) {
                         if (strncmp(envar,no_export[k],
                                     strlen(no_export[k]))==0) {
+                                export = 0;
+                                break;
+                        }
+                }
+                if (!export)
+                        continue;
+                /* 
+                   Only accept alphanumerics and underscore in
+                   variable names. Also require the name to not start
+                   with a digit. Some shells don't like other variable
+                   names.
+                */
+                if (isdigit(*p))
+                        export = 0;
+                if (!export)
+                        continue;
+                for (;(*p != '=') && (*p != '\0'); ++p) {
+                        if (!isalnum(*p) && (*p != '_')) {
                                 export = 0;
                                 break;
                         }

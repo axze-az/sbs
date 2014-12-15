@@ -1,3 +1,11 @@
+sbs (0.6.2) unstable; urgency=low
+
+  * add require pam_loginuid.so to pam.conf
+  * Bumped Standards-Version to 3.9.5
+  * add Multi-Arch: foreign
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Mon, 15 Dec 2014 12:00:00 +0100
+
 sbs (0.6.0) unstable; urgency=low
 
   * correct umask handling during job creation

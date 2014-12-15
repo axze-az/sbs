@@ -3,10 +3,11 @@ Section: admin
 Priority: extra
 Maintainer: axel <axel.zeuner@gmx.de>
 Build-Depends: debhelper (>= 9), libpam0g-dev, ssmtp | mail-transport-agent
-Standards-Version: 3.7.2
+Standards-Version: 3.9.5
 
 Package: sbs
 Architecture: any
+Multi-Arch: foreign
 Depends: ${shlibs:Depends}, exim4 | mail-transport-agent, lsb-base (>= 3.0-10)
 Description: Simple Batch processing system
  The S(imple) b(atch) s(ystem) is an at like batch system with

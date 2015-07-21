@@ -1,0 +1,11 @@
+[Unit]
+Description=simple batch system queue n12
+Documentation=man:sbsd(8)
+
+[Service]
+#ExecStart=/usr/sbin/sbsd -d -q n12 -n 12 -w 2 -a 22:00-05:35 -t 120 -l 8.0
+ExecStartPre=-/usr/sbin/sbsd -q n12 -c
+ExecStart=/usr/sbin/sbsd -q n12 -d -n 12 -w 2 -a 22:00-05:35 -t 120 -l 8.0
+
+[Install]
+WantedBy=multi-user.target

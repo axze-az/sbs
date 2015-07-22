@@ -1,0 +1,10 @@
+[Unit]
+Description=sbs for all queues
+#ConditionPathExists=/etc/sbs/*.conf
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl --no-block start sbs@n12.service sbs@q12.service
+ExecStop=/bin/systemctl --no-block stop sbs@n12.service sbs@q12.service
+RemainAfterExit=true
+

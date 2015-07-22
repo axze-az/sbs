@@ -68,6 +68,8 @@ binary-arch: build install
 #	dh_installmime
 #	dh_python
 	dh_installinit
+	dh_installinit --name=sbs.q12
+	dh_installinit --name=sbs.n12
 #	dh_installcron 
 #	dh_installinfo
 	dh_installman *.man

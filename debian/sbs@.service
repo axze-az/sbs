@@ -1,0 +1,13 @@
+[Unit]
+Description=simple batch system queue %i
+Documentation=man:sbsd(8)
+#ConditionPathExists=/etc/sbs/%i.conf
+
+[Service]
+Environment=SYSTEMD_LOG_LEVEL=debug
+EnvironmentFile=/etc/sbs/%i.conf
+ExecStartPre=-/usr/sbin/sbsd -q $QUEUE -c
+ExecStart=/usr/sbin/sbsd -d -q $QUEUE -n $NICE -w $WORKERS -a $ACTIVE -t $TIMEOUT -l $LOAD
+
+[Install]
+WantedBy=multi-user.target

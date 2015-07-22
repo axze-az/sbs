@@ -8,3 +8,5 @@ ExecStart=/usr/sbin/sbsd-systemd-helper start
 ExecStop=/usr/sbin/sbsd-systemd-helper stop
 RemainAfterExit=true
 
+[Install]
+WantedBy=multi-user.target

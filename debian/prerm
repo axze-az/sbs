@@ -4,7 +4,7 @@ if [ -x /etc/init.d/sbs ]
 then
     invoke-rc.d sbs stop || true
 fi
-if [ -x /sbin/systemctl ]
+if [ -x /bin/systemctl ]
 then
     systemctl stop sbs || true
 fi

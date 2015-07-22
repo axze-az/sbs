@@ -74,6 +74,7 @@ install: all
 # sbsd
 	mkdir -p ${IROOT}/${SBIN_DIR}
 	install -m 0755 -g root -o root sbsd ${IROOT}/${SBIN_DIR}
+	install -m 0755 -g root -o root sbsd-systemd-helper ${IROOT}/${SBIN_DIR}
 	mkdir -p ${IROOT}/${RUN_DIR}
 # spool directory
 	mkdir -p ${IROOT}/${SBS_QUEUE_DIR}
@@ -89,6 +90,7 @@ install: all
 # init.d
 	mkdir -p ${IROOT}/${INIT_DIR}
 	install -m 0755 -g root -o root sbs.init ${IROOT}/${INIT_DIR}/sbs
+# systemd files
 
 distclean: clean
 	-$(RM) *~

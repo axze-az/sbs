@@ -1,0 +1,36 @@
+#! /bin/sh
+CONFIG_PATH=/etc/sbs
+
+read_names()
+{
+    local n
+    for i in $CONFIG_PATH/*.conf
+    do
+        if [ -f $i ] ; then
+            n=`basename $i .conf`
+            echo "sbs@${n}.service"
+        fi
+    done
+}
+
+main()
+{
+    local svc_names
+    svc_names=`read_names`
+    if [ -n "$svc_names" ] ; then
+        case "$1" in
+            start)
+                echo systemctl --no-stop start $svc_names
+                ;;
+            stop)
+                echo systemctl --no-stop stop $svc_names
+                ;;
+            *)
+                echo "Usage: $0 {start|stop}"
+                exit 1
+        esac
+    fi
+}
+
+main $*
+

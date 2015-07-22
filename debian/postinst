@@ -9,9 +9,7 @@ if [ "$1" = "configure" ]; then
         chown -R daemon:daemon /var/spool/sbs
         update-rc.d sbs defaults 89 11 > /dev/null
         if [ -x /sbin/systemctl ] ; then
-            for i in /etc/sbs/*.conf
-            do
-            done
+            systemctl enable sbs
         fi
     else
         chown daemon:daemon /var/spool/sbs
@@ -26,4 +24,8 @@ if [ "$1" = "configure" ]; then
     fi
 fi
 
-invoke-rc.d sbs start
+if [ -x /sbin/systemctl ] ; then
+    systemctl start sbs
+else
+    invoke-rc.d sbs start
+fi

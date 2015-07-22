@@ -2,7 +2,8 @@
 set -e
 if [ "$1" = purge ]
 then
-	update-rc.d sbs remove >/dev/null;
-	rm -rf /var/spool/sbs
+    update-rc.d sbs remove >/dev/null;
+    systemctl disable sbs >/dev/null
+    rm -rf /var/spool/sbs
 fi
 

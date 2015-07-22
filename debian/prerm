@@ -2,5 +2,9 @@
 
 if [ -x /etc/init.d/sbs ]
 then
-	invoke-rc.d sbs stop || true
+    invoke-rc.d sbs stop || true
+fi
+if [ -x /sbin/systemctl ]
+then
+    systemctl stop sbs || true
 fi

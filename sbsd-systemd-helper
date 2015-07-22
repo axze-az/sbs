@@ -20,10 +20,10 @@ main()
     if [ -n "$svc_names" ] ; then
         case "$1" in
             start)
-                echo systemctl --no-stop start $svc_names
+                systemctl --no-block start $svc_names
                 ;;
             stop)
-                echo systemctl --no-stop stop $svc_names
+                systemctl --no-block stop $svc_names
                 ;;
             *)
                 echo "Usage: $0 {start|stop}"

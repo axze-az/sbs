@@ -1,3 +1,9 @@
+sbs (0.6.4) unstable; urgency=low
+
+  * systemd integration
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Wed, 22 Jul 2015 12:01:00 +0100
+
 sbs (0.6.3) unstable; urgency=low
 
   * only retain variables whose name consists of alphanumerics and underscores,

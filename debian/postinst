@@ -21,9 +21,15 @@ if [ "$1" = "configure" ]; then
     fi
 fi
 
-if [ -x /bin/systemctl ] ; then
-    systemctl enable sbs
-    systemctl start sbs
+deb-systemd-helper unmask sbs.service >/dev/null || true
+if deb-systemd-helper --quiet was-enabled sbs.service ; then
+    deb-systemd-helper enable sbs.service >/dev/null || true
 else
-    invoke-rc.d sbs start
+    deb-systemd-helper update-state sbs.service >/dev/null || true
 fi
+if [ -d /run/systemd/system ] ; then
+    systemctl start sbs.service || true
+else
+    invoke-rc.d sbs start || true
+fi
+

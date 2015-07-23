@@ -1,8 +1,14 @@
+sbs (0.6.5) unstable; urgency=low
+
+  * systemd integration part II
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Thu, 23 Jul 2015 09:01:00 +0200
+
 sbs (0.6.4) unstable; urgency=low
 
   * systemd integration
 
- -- axel zeuner <axel.zeuner@gmx.de>  Wed, 22 Jul 2015 12:01:00 +0100
+ -- axel zeuner <axel.zeuner@gmx.de>  Wed, 22 Jul 2015 12:01:00 +0200
 
 sbs (0.6.3) unstable; urgency=low
 

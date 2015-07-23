@@ -1,9 +1,22 @@
 #!/bin/sh
 set -e
-if [ "$1" = purge ]
+if [ "$1" = "purge" ]
 then
     update-rc.d sbs remove >/dev/null;
     systemctl disable sbs >/dev/null
     rm -rf /var/spool/sbs
+    if [ -x "/usr/bin/deb-systemd-helper" ]; then
+        deb-systemd-helper purge sbs.service >/dev/null
+        deb-systemd-helper unmask sbs.service >/dev/null
+    fi
+fi
+if [ "$1" = "remove" ]
+then
+    if [ -x "/usr/bin/deb-systemd-helper" ]; then
+        deb-systemd-helper mask sbs.service >/dev/null
+    fi
+fi
+if [ -d /run/systemd/system ] ; then
+    systemctl --system daemon-reload >/dev/null || true
 fi
 

@@ -849,6 +849,8 @@ pid_t q_exec(const char* basedir, const char* queue,
         {
                 char *nul = NULL;
                 char **nenvp = &nul;
+                int i;
+                sigset_t all_set;
 #if 0
                 close(lockfd);
 #endif
@@ -890,6 +892,14 @@ pid_t q_exec(const char* basedir, const char* queue,
                                  "cannot set user id");
                 if (chdir(pentry->pw_dir))
                         chdir("/");
+                for (i=0; i<_NSIG; ++i) {
+                        struct sigaction sa;
+                        memset(&sa, 0, sizeof(sa));
+                        sa.sa_handler=SIG_DFL;
+                        sigaction(i, &sa, NULL);
+                }
+                sigfillset(&all_set);
+                sigprocmask(SIG_UNBLOCK, &all_set, NULL);
                 if(execle("/bin/sh","sh",(char *) NULL, nenvp) != 0)
                         exit_msg(SBS_EXIT_EXEC_FAILED,
                                  "exec failed for /bin/sh");

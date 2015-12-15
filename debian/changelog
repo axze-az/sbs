@@ -1,3 +1,9 @@
+sbs (0.6.6) unstable; urgency=low
+
+  * SIGCHLD handling
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Thu, 15 Dec 2015 17:01:00 +0100
+
 sbs (0.6.5) unstable; urgency=low
 
   * systemd integration part II

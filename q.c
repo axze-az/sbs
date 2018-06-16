@@ -647,6 +647,7 @@ pid_t q_exec(const char* basedir, const char* queue,
         int fd_out, fd_in, r;
         char filename[PATH_MAX];
         char mailbuf[LOGNAMESIZE+1], fmt[50];
+        char hostnamebuf[HOST_NAME_MAX+1];
         char *mailname = NULL;
         FILE *stream;
         int send_mail = 0;
@@ -826,9 +827,13 @@ pid_t q_exec(const char* basedir, const char* queue,
         if((fd_out=open(filename,
                         O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR)) < 0)
                 exit_msg(SBS_EXIT_EXEC_FAILED,"cannot create output file");
+        hostnamebuf[HOST_NAME_MAX]=0;
+        if (gethostname(hostnamebuf, HOST_NAME_MAX)!=0) {
+                strcpy(hostnamebuf, "unknown");
+        }
         snprintf(subject,sizeof(subject),
-                 "Subject: job sbs/%s/%ld output\n", 
-                 queue,jobno);
+                 "Subject: job %s/sbs/%s/%ld output\n", 
+                 hostnamebuf, queue,jobno);
         write(fd_out,subject,strlen(subject));
         write(fd_out,"To: ",3);
         write(fd_out,mailname,strlen(mailname));

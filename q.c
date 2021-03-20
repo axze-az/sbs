@@ -65,7 +65,7 @@ int q_cd_dir(const char* basename, const char* qname)
         if (chdir(qname) < 0)
                 exit_msg(SBS_EXIT_CD_FAILED,
                          "Could not switch to %s/%s"
-                         " - wrong queue name?"
+                         " - wrong queue name?",
                          basename, qname);
         return 0;
 }

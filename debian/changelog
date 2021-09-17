@@ -1,3 +1,9 @@
+sbs (0.6.10) unstable; urgency=low
+
+  * describe the order of the job priorities in the sbs man page
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Fri, 17 Sep 2021 17:30:00 +0200
+
 sbs (0.6.9) unstable; urgency=low
 
   * improve an error message

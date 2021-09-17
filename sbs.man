@@ -31,7 +31,9 @@ specifies the sbs queue to work on.
 reads the job command from file instead from standard input.
 .TP 
 .B -p " prio"
-selects the priority [0-100] of the job.
+selects the priority [0 to 100] of the job in the queue, where 0 is
+the highest priority.
+.
 .TP
 .B -m 
 requests delivery of a mail after job execution even without job output.

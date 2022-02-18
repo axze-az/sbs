@@ -906,7 +906,7 @@ pid_t q_exec(const char* basedir, const char* queue,
                 }
                 sigfillset(&all_set);
                 sigprocmask(SIG_UNBLOCK, &all_set, NULL);
-                if(execle("/bin/sh","sh",(char *) NULL, nenvp) != 0)
+                if (execle("/bin/sh","sh",(char *) NULL, nenvp) != 0)
                         exit_msg(SBS_EXIT_EXEC_FAILED,
                                  "exec failed for /bin/sh");
                 PRIV_END();

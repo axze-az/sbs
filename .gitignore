@@ -1,0 +1,8 @@
+.*.dep-*
+*.o*
+*.a
+cpu-stats
+cpu-stats-daemon
+*~
+.kdev4
+

@@ -1,8 +1,9 @@
 .*.dep-*
 *.o*
 *.a
-cpu-stats
-cpu-stats-daemon
+sbs
+sbs-list-queues
+sbsd
 *~
 .kdev4
 

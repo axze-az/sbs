@@ -1,5 +1,5 @@
 .\" Process this file with 
-.\" groff -man -Tascii sbsd.man
+.\" groff -man -Tutf8 sbsd.man | less -r
 .\" 
 .TH sbs.conf 5 "DEC 2007" "sbs.conf"
 .SH NAME

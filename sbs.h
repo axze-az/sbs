@@ -1,6 +1,6 @@
 /* 
  *  sbs.h - simple batch system, main header
- *  Copyright (C) 2008-2014  Axel Zeuner
+ *  Copyright (C) 2008-2024  Axel Zeuner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,12 +25,12 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.6.10"
+#define SBS_VERSION "simple batch system V-0.6.11"
 /*
  * queue layout: 
  * basedir/queue/jobs/
- *                   /joblist.dat
- *              /spool
+ *                    joblist.dat
+ *              /spool/
  *
  */
 #define SBS_QUEUE_JOB_DIR               "jobs"

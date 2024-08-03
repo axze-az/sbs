@@ -1,3 +1,9 @@
+sbs (0.6.12) unstable; urgency=low
+
+  * correct the usage message of sbs-list-queues
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 03 Aug 2024 11:50:00 +0200
+
 sbs (0.6.11) unstable; urgency=low
 
   * use utf8 instead of ascii for man page formatting

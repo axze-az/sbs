@@ -5,7 +5,8 @@ SBS_CFG_PATH_IN
 
 usage()
 {
-    echo $0 -q queuename
+    echo $0
+    echo "to list only queue X use: sbs -l -q X"
     exit 1
 }
 

@@ -1,3 +1,9 @@
+sbs (0.6.13) unstable; urgency=low
+
+  * correct the reported version
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 03 Aug 2024 17:00:00 +0200
+
 sbs (0.6.12) unstable; urgency=low
 
   * correct the usage message of sbs-list-queues

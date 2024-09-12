@@ -1,3 +1,10 @@
+sbs (0.6.14) unstable; urgency=low
+
+   * change the number of active workers to 1 and the load to 16
+   * for all configuration files
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Thu, 12 Sep 2024 17:00:00 +0200
+
 sbs (0.6.13) unstable; urgency=low
 
   * correct the reported version

@@ -1,12 +1,32 @@
-[Unit]
-Description=sbs for all queues
+#[Unit]
+#Description=sbs for all queues
 #ConditionPathExists=/etc/sbs/*.conf
 
-[Service]
-Type=oneshot
-ExecStart=/usr/sbin/sbsd-systemd-helper start
-ExecStop=/usr/sbin/sbsd-systemd-helper stop
-RemainAfterExit=true
+#[Service]
+#Type=oneshot
+#ExecStart=/usr/sbin/sbsd-systemd-helper start
+#ExecStop=/usr/sbin/sbsd-systemd-helper stop
+#RemainAfterExit=true
 
-[Install]
-WantedBy=multi-user.target
+#[Install]
+#WantedBy=multi-user.target
+
+[Unit]
+SourcePath=/etc/init.d/sbs
+Description=Simple batch system
+Before=multi-user.target
+Before=graphical.target
+After=time-sync.target
+After=remote-fs.target
+
+[Service]
+Type=forking
+Restart=no
+TimeoutSec=5min
+IgnoreSIGPIPE=no
+KillMode=process
+GuessMainPID=no
+RemainAfterExit=yes
+SuccessExitStatus=5 6
+ExecStart=/etc/init.d/sbs start
+ExecStop=/etc/init.d/sbs stop

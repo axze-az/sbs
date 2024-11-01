@@ -1,5 +1,5 @@
 [Unit]
-Documnentation=man:sbs
+Documentation=man:sbs
 SourcePath=/etc/init.d/sbs
 Description=Simple batch system
 Before=multi-user.target

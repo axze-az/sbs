@@ -1,3 +1,9 @@
+sbs (0.6.16) unstable; urgency=low
+
+   * correct the systemd service file
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Fri, 01 Nov 2024 17:30:00 +0100
+
 sbs (0.6.15) unstable; urgency=low
 
    * install also the systemd service file

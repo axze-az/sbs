@@ -68,8 +68,7 @@ binary-arch: build install
 #	dh_installmime
 #	dh_python
 	dh_installinit
-	dh_installinit --name=sbs@
-	dh_installinit --name=sbs
+	dh_installsystemd --name=sbs
 #	dh_installcron 
 #	dh_installinfo
 	dh_installman *.man

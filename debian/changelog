@@ -1,4 +1,4 @@
-sbs (0.6.16) unstable; urgency=low
+sbs (0.6.17) unstable; urgency=low
 
    * correct the systemd service file again
 

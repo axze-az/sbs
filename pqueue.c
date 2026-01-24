@@ -1,6 +1,6 @@
-/* 
+/*
  *  pqueue.c - simple batch system queue implementation
- *  Copyright (C) 2010-2011 Axel Zeuner
+ *  Copyright (C) 2010-2026 Axel Zeuner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 struct pqueue_entry {
         int _id;
         int _pri;
-	struct timeval _time;
+        struct timeval _time;
         uid_t _uid;
 } __attribute__((__aligned__(16)));
 
@@ -80,27 +80,40 @@ char* uid_2_name(uid_t uid)
 }
 
 static
+int __pqueue_entry_print(FILE* f, const struct pqueue_entry* e)
+{
+        char* uname = uid_2_name(e->_uid);
+        char stime[128];
+        unsigned msec= (e->_time.tv_usec/1000);
+        struct tm t;
+        localtime_r(&e->_time.tv_sec,&t);
+        strftime(stime,sizeof(stime), "%F %T", &t);
+        if ((e->_pri & PQUEUE_RUN_BIT)) {
+                fprintf(f, "%-9i %s.%03u ACTIVE %-32s\n",
+                        e->_id, stime, msec, uname);
+        } else {
+                fprintf(f, "%-9i %s.%03u %6u %-32s\n",
+                        e->_id, stime, msec,
+                        e->_pri & ~PQUEUE_RUN_BIT, uname);
+        }
+        free(uname);
+        return 0;
+}
+
+static
 int pqueue_entry_print(FILE* f, const struct pqueue_entry* e,
                        uid_t uid)
 {
+        int r;
+#if (SBS_CONFIG_USER_FULL_JOB_LIST > 0)
+        (void)uid;
+        r=__pqueue_entry_print(f, e);
+#else
         if ((uid == 0) || (uid == DAEMON_UID) || (uid == e->_uid)) {
-                char* uname = uid_2_name(e->_uid);
-		char stime[128];
-		unsigned msec= (e->_time.tv_usec/1000);
-		struct tm t;
-		localtime_r(&e->_time.tv_sec,&t);
-		strftime(stime,sizeof(stime), "%F %T", &t);
-                if ((e->_pri & PQUEUE_RUN_BIT)) {
-                        fprintf(f, "%-9i %s.%03u ACTIVE %-32s\n",
-                                e->_id, stime, msec, uname);
-                } else {
-                        fprintf(f, "%-9i %s.%03u %6u %-32s\n",
-                                e->_id, stime, msec, 
-				e->_pri & ~PQUEUE_RUN_BIT, uname);
-		}
-                free(uname);
+                r=__pqueue_entry_print(f, e);
         }
-        return 0;
+#endif
+        return r;
 }
 
 static
@@ -109,7 +122,7 @@ struct pqueue* pqueue_create(void)
         struct pqueue* q=(struct pqueue*)calloc(1,sizeof(*q));
         if (q) {
                 int alloc_cnt=256;
-		q->_head._ver = PQUEUE_VER;
+                q->_head._ver = PQUEUE_VER;
                 q->_entries=(struct pqueue_entry*)
                         malloc(alloc_cnt*sizeof(struct pqueue_entry));
                 if (q->_entries) {
@@ -128,7 +141,7 @@ void pqueue_destroy(struct pqueue* q)
         free(q);
 }
 
-static 
+static
 int pqueue_expand(struct pqueue* q)
 {
         struct pqueue_entry* ne= (struct pqueue_entry*)
@@ -153,32 +166,32 @@ int pqueue_cmp(const void* va, const void* vb)
 {
         const struct pqueue_entry* a=(const struct pqueue_entry*)va;
         const struct pqueue_entry* b=(const struct pqueue_entry*)vb;
-	int d=0;
-	do {
-		/* running entries are smaller than others */
-		/* 0x80000000 - 0x80000000 == 0 */
-		/* 0x80000000 - 0x00000000 == 0x80000000 < 0 */
-		/* 0x00000000 - 0x80000000 == 0x80000000 < 0 */
-		if ((a->_pri & PQUEUE_RUN_BIT) != (b->_pri & PQUEUE_RUN_BIT)) {
-			if (a->_pri & PQUEUE_RUN_BIT)
-				d = -1;
-			else
-				d = +1;
-			break;
-		} 
- 		/* mask out the run bit */
-		d= (a->_pri & ~PQUEUE_RUN_BIT) - (b->_pri & ~PQUEUE_RUN_BIT);
-		if (d)
-			break;
-		d= a->_time.tv_sec - b->_time.tv_sec;
-		if (d) 
-			break;
-		d= a->_time.tv_usec - b->_time.tv_usec;
-		if (d)
-			break;
-		d= a->_id - b->_id;
-	} while (0);
-	return d;
+        int d=0;
+        do {
+                /* running entries are smaller than others */
+                /* 0x80000000 - 0x80000000 == 0 */
+                /* 0x80000000 - 0x00000000 == 0x80000000 < 0 */
+                /* 0x00000000 - 0x80000000 == 0x80000000 < 0 */
+                if ((a->_pri & PQUEUE_RUN_BIT) != (b->_pri & PQUEUE_RUN_BIT)) {
+                        if (a->_pri & PQUEUE_RUN_BIT)
+                                d = -1;
+                        else
+                                d = +1;
+                        break;
+                }
+                /* mask out the run bit */
+                d= (a->_pri & ~PQUEUE_RUN_BIT) - (b->_pri & ~PQUEUE_RUN_BIT);
+                if (d)
+                        break;
+                d= a->_time.tv_sec - b->_time.tv_sec;
+                if (d)
+                        break;
+                d= a->_time.tv_usec - b->_time.tv_usec;
+                if (d)
+                        break;
+                d= a->_id - b->_id;
+        } while (0);
+        return d;
 }
 
 static int pqueue_read_entries(int fd, struct pqueue* pq)
@@ -243,29 +256,39 @@ int pqueue_write(int fd, const struct pqueue* q)
         sigprocmask(SIG_SETMASK,&empty,&sm);
         while (((w=write(fd,&q->_head, sizeof(q->_head)))<0) &&
                (errno==EINTR));
-        if (w != sizeof(q->_head)) 
+        if (w != sizeof(q->_head))
                 return 1;
         r=pqueue_write_entries(fd,q);
         sigprocmask(SIG_SETMASK, &sm, NULL);
         return r;
 }
 
+static
+void __pqueue_print_stats(FILE* f, const struct pqueue* q)
+{
+        fprintf(f,
+                "# version: %2u.%02u, id: %8i, "
+                "processed jobs: %8li, queued jobs: %8li\n",
+                (q->_head._ver >> 16) & 0xffff,
+                q->_head._ver & 0xffff,
+                q->_head._id, q->_head._total, q->_head._entry_cnt);
+}
+
 int pqueue_print(FILE* f, const struct pqueue* q, uid_t uid)
 {
         size_t i;
+#if (SBS_CONFIG_USER_QUEUE_STATS > 0)
+        __pqueue_print_stats(f, q);
+#else
         if ((uid == 0) || (uid == DAEMON_UID)) {
-                fprintf(f,
-                        "# version: %2u.%02u, id: %8i, "
-                        "processed jobs: %8li, queued jobs: %8li\n",
-                        (q->_head._ver >> 16) & 0xffff,
-                        q->_head._ver & 0xffff,
-                        q->_head._id, q->_head._total, q->_head._entry_cnt);
-                if (q->_head._entry_cnt)
-                        fprintf(f, "# %-7s %-23s %6s %-32s\n",
-                                "job-id", "queue time", "prio", "user");
+                __pqueue_print_stats(f, q);
         }
+#endif
+        if (q->_head._entry_cnt)
+                fprintf(f, "# %-7s %-23s %6s %-32s\n",
+                        "job-id", "queue time", "prio", "user");
         for (i=0;i<q->_head._entry_cnt;++i)
-                pqueue_entry_print(f,q->_entries+i, uid);
+                pqueue_entry_print(f, q->_entries+i, uid);
         return 0;
 }
 
@@ -280,11 +303,11 @@ int pqueue_enqueue(struct pqueue* q, int pri, uid_t uid)
         if (q->_head._entry_cnt == q->_alloc_cnt)
                 pqueue_expand(q);
         e= q->_entries + q->_head._entry_cnt;
-	memset(e,0,sizeof(*e));
+        memset(e,0,sizeof(*e));
         e->_pri = pri;
         e->_id = id = pqueue_next_id(q);
         e->_uid = uid;
-	gettimeofday(&e->_time,0);
+        gettimeofday(&e->_time,0);
         ++q->_head._entry_cnt;
         qsort(q->_entries, q->_head._entry_cnt, sizeof(struct pqueue_entry),
               pqueue_cmp);
@@ -322,8 +345,8 @@ int pqueue_remove_active(struct pqueue* q, int id, uid_t uid)
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
                 if (((q->_entries[i]._pri & PQUEUE_RUN_BIT) != 0) &&
-		    (q->_entries[i]._id == id)) {
-                        if ((uid==0) || 
+                    (q->_entries[i]._id == id)) {
+                        if ((uid==0) ||
                             (uid==DAEMON_UID) ||
                             (uid==q->_entries[i]._uid)) {
                                 pqueue_remove_entry(q,i);
@@ -339,27 +362,27 @@ int pqueue_remove_active(struct pqueue* q, int id, uid_t uid)
 
 int pqueue_reset_active(struct pqueue* q, int id, uid_t uid)
 {
-	size_t i;
-	int r=ENOENT;
-	if ((uid!=0) && (uid!=DAEMON_UID))
-		return EPERM;
-	for (i=0; i< q->_head._entry_cnt; ++i) {
+        size_t i;
+        int r=ENOENT;
+        if ((uid!=0) && (uid!=DAEMON_UID))
+                return EPERM;
+        for (i=0; i< q->_head._entry_cnt; ++i) {
                 if (q->_entries[i]._id == id) {
-			if ((q->_entries[i]._pri & PQUEUE_RUN_BIT)!=0) {
-				q->_entries[i]._pri &= ~PQUEUE_RUN_BIT;
-				r=0;
-				break;
-			} else {
-				r=EINVAL;
-				break;
-			}
-		}
-	}
-	if (r==0)
-		qsort(q->_entries, q->_head._entry_cnt, 
-		      sizeof(struct pqueue_entry),
-		      pqueue_cmp);
-	return r;
+                        if ((q->_entries[i]._pri & PQUEUE_RUN_BIT)!=0) {
+                                q->_entries[i]._pri &= ~PQUEUE_RUN_BIT;
+                                r=0;
+                                break;
+                        } else {
+                                r=EINVAL;
+                                break;
+                        }
+                }
+        }
+        if (r==0)
+                qsort(q->_entries, q->_head._entry_cnt,
+                      sizeof(struct pqueue_entry),
+                      pqueue_cmp);
+        return r;
 }
 
 int pqueue_remove(struct pqueue* q, int id, uid_t uid)
@@ -368,18 +391,18 @@ int pqueue_remove(struct pqueue* q, int id, uid_t uid)
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
                 if (q->_entries[i]._id == id) {
-			if ((q->_entries[i]._pri & PQUEUE_RUN_BIT)!=0) {
-				r= EPERM;
-				break;
-			} 
-			if ((uid==0) || 
-			    (uid==DAEMON_UID) ||
-			    (uid==q->_entries[i]._uid)) {
-				pqueue_remove_entry(q,i);
-				r=0;
-				break;
-			}
-			r=EPERM;
+                        if ((q->_entries[i]._pri & PQUEUE_RUN_BIT)!=0) {
+                                r= EPERM;
+                                break;
+                        }
+                        if ((uid==0) ||
+                            (uid==DAEMON_UID) ||
+                            (uid==q->_entries[i]._uid)) {
+                                pqueue_remove_entry(q,i);
+                                r=0;
+                                break;
+                        }
+                        r=EPERM;
                         break;
                 }
         }
@@ -392,7 +415,7 @@ int pqueue_check_jobid(const struct pqueue* q, int id, uid_t uid)
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
                 if (q->_entries[i]._id == id) {
-                        if ((uid==0) || 
+                        if ((uid==0) ||
                             (uid==DAEMON_UID) ||
                             (uid==q->_entries[i]._uid)) {
                                 r=0;
@@ -411,9 +434,9 @@ int pqueue_get_job_uid(const struct pqueue* q, int id, uid_t* uid)
         size_t i;
         for (i=0;i<q->_head._entry_cnt;++i) {
                 if (q->_entries[i]._id == id) {
-			*uid = q->_entries[i]._uid;
-			r=0;
-			break;
+                        *uid = q->_entries[i]._uid;
+                        r=0;
+                        break;
                 }
         }
         return r;
@@ -421,7 +444,7 @@ int pqueue_get_job_uid(const struct pqueue* q, int id, uid_t* uid)
 
 int pqueue_get_entry_cnt(const struct pqueue* q)
 {
-	return q->_head._entry_cnt;
+        return q->_head._entry_cnt;
 }
 
 struct pqueue* pqueue_open_lock_read(const char* path, int rw)
@@ -469,16 +492,16 @@ int pqueue_update_close_destroy(struct pqueue* pq, int rw)
                 o = lseek(pq->_fd, 0, SEEK_CUR);
                 ftruncate(pq->_fd,o);
         }
-        while ((close(pq->_fd)<0) && (errno==EINTR)); 
+        while ((close(pq->_fd)<0) && (errno==EINTR));
         pqueue_destroy(pq);
         return 0;
 }
 
 int pqueue_close(struct pqueue* pq)
 {
-        while ((close(pq->_fd)<0) && (errno==EINTR)); 
-	pq->_fd = -1;
-	return 0;
+        while ((close(pq->_fd)<0) && (errno==EINTR));
+        pq->_fd = -1;
+        return 0;
 }
 
 int pqueue_fs_init(const char* path)

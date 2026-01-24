@@ -348,7 +348,7 @@ int q_job_list(const char* basedir, const char* queue,
                          PQUEUE_JOB_LIST_FILE, basedir, queue);
         }
         pqueue_close(pq);
-        pqueue_print(out,pq, real_uid);
+        pqueue_print(out, pq, real_uid);
         pqueue_destroy(pq);
         return 0;
 }

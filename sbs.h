@@ -1,6 +1,6 @@
 /* 
  *  sbs.h - simple batch system, main header
- *  Copyright (C) 2008-2024  Axel Zeuner
+ *  Copyright (C) 2008-2026  Axel Zeuner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,18 @@
 #include <pwd.h>
 #include <signal.h>
 
-#define SBS_VERSION "simple batch system V-0.6.17"
+#define SBS_VERSION "simple batch system V-0.6.18"
+/*
+ * set this to non zero to list for normal users, i.e. not only root
+ * and daemon, all jobs and not only their own
+ */
+#define SBS_CONFIG_USER_FULL_JOB_LIST 1
+/*
+ * set this to non zero to list for normal users, i.e. not only root
+ * and daemon, the number of queued and processed jobs
+ */
+#define SBS_CONFIG_USER_QUEUE_STATS 1
+
 /*
  * queue layout: 
  * basedir/queue/jobs/

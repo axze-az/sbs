@@ -1,4 +1,4 @@
-/* 
+/*
  *  q.c - simple batch system queue implementation
  *  Copyright (C) 2008-2011  Axel Zeuner
  *
@@ -75,7 +75,7 @@ int q_notify_un(const char* basename, const char* qname,
 {
         /* Socket type is local (Unix Domain). */
         memset(addr,0, sizeof(*addr));
-        addr->sun_family = AF_LOCAL; 
+        addr->sun_family = AF_LOCAL;
         if ( snprintf(addr->sun_path, sizeof(addr->sun_path),
                       "%s/%s/%s/.n",basename, qname, SBS_QUEUE_JOB_DIR) >=
              (int)sizeof(addr->sun_path)) {
@@ -141,7 +141,7 @@ int q_notify_daemon( const char* basename, const char* qname)
         if ( sfd <0)
                 return -errno;
         PRIV_START();
-        if (connect(sfd, (struct sockaddr *) &addr, sizeof(addr))<0) 
+        if (connect(sfd, (struct sockaddr *) &addr, sizeof(addr))<0)
                 r= -errno;
         PRIV_END();
         close(sfd);
@@ -154,7 +154,7 @@ int q_cd_job_dir (const char* basename, const char* qname)
         q_cd_dir(basename, qname);
         if (chdir(SBS_QUEUE_JOB_DIR)<0)
                 exit_msg(SBS_EXIT_CD_FAILED,
-                         "Could not switch to %s/%s/" SBS_QUEUE_JOB_DIR, 
+                         "Could not switch to %s/%s/" SBS_QUEUE_JOB_DIR,
                          basename, qname);
         PRIV_END();
         return 0;
@@ -166,7 +166,7 @@ int q_cd_spool_dir(const char* basename, const char* qname)
         q_cd_dir(basename, qname);
         if (chdir(SBS_QUEUE_SPOOL_DIR)<0)
                 exit_msg(SBS_EXIT_CD_FAILED,
-                         "Could not switch to %s/%s/" SBS_QUEUE_SPOOL_DIR, 
+                         "Could not switch to %s/%s/" SBS_QUEUE_SPOOL_DIR,
                          basename, qname);
         PRIV_END();
         return 0;
@@ -201,7 +201,7 @@ int q_create(const char* basename, const char* qname)
         if (chdir(basename) < 0)
                 exit_msg(SBS_EXIT_CD_FAILED,
                          "could not switch to %s", basename);
-        if ( (stat(qname,&st) ==0) || (errno != ENOENT)) 
+        if ( (stat(qname,&st) ==0) || (errno != ENOENT))
                 exit_msg(SBS_EXIT_FAILED,
                          "%s exists already in the filesystem",
                          qname);
@@ -209,28 +209,28 @@ int q_create(const char* basename, const char* qname)
         md = S_IWUSR | S_IRUSR | S_IXUSR |
                 S_IRGRP | S_IXGRP |
                 S_IROTH | S_IXOTH;
-        if (mkdir(qname,md) < 0) 
+        if (mkdir(qname,md) < 0)
                 exit_msg(SBS_EXIT_FAILED,
                          "%s/%s creation failed", basename, qname);
         if (chdir(qname) < 0)
                 exit_msg(SBS_EXIT_CD_FAILED,
                          "could not switch to %s/%s", basename, qname);
-        
+
         md = S_IWUSR | S_IRUSR | S_IXUSR |
                 S_IWGRP | S_IRGRP | S_IXGRP |
                 S_ISVTX; /* sticky */
-        
+
         if (mkdir(SBS_QUEUE_JOB_DIR, md) < 0)
                 exit_msg(SBS_EXIT_FAILED,
-                         "%s/%s/" SBS_QUEUE_JOB_DIR "creation failed", 
+                         "%s/%s/" SBS_QUEUE_JOB_DIR "creation failed",
                          basename, qname);
         if (mkdir(SBS_QUEUE_SPOOL_DIR, md) < 0)
                 exit_msg(SBS_EXIT_FAILED,
-                         "%s/%s/" SBS_QUEUE_SPOOL_DIR "creation failed", 
+                         "%s/%s/" SBS_QUEUE_SPOOL_DIR "creation failed",
                          basename, qname);
-        if (pqueue_fs_init(SBS_QUEUE_JOB_DIR) !=0) 
+        if (pqueue_fs_init(SBS_QUEUE_JOB_DIR) !=0)
                 exit_msg(SBS_EXIT_FAILED,
-                         "%s/%s/%s creation failed", 
+                         "%s/%s/%s creation failed",
                          basename, qname, PQUEUE_JOB_LIST_FILE);
         umask(um);
         PRIV_END();
@@ -328,7 +328,7 @@ int q_lock_active_file(int num)
         /* current working directory should be JOB_DIR, make sure that
            only on job can execute */
         char fname[PATH_MAX];
-        snprintf(fname, sizeof(fname), 
+        snprintf(fname, sizeof(fname),
                  SBS_QUEUE_ACTIVE_LOCKFILE ".%d", num);
         return q_lock_file (fname, 0);
 }
@@ -344,7 +344,7 @@ int q_job_list(const char* basedir, const char* queue,
         PRIV_END();
         if (pq == 0) {
                 exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
-                         "could not lock and read %s/%s/" 
+                         "could not lock and read %s/%s/"
                          PQUEUE_JOB_LIST_FILE, basedir, queue);
         }
         pqueue_close(pq);
@@ -368,21 +368,27 @@ int q_job_cat(const char* basedir, const char* queue,
         PRIV_END();
         if (c!=0) {
                 pqueue_update_close_destroy(pq,0);
-                exit_msg(SBS_EXIT_FAILED,
-                         "job %s/%ld does not exist",
-                         queue,jobno);
+                if (c==EPERM) {
+                    exit_msg(SBS_EXIT_FAILED,
+                             "job %s/%ld belongs to another user",
+                             queue, jobno);
+                } else {
+                    exit_msg(SBS_EXIT_FAILED,
+                             "job %s/%ld does not exist",
+                             queue, jobno);
+                }
         }
         PRIV_START();
         seteuid(real_uid);
-        f = fopen(filename,"r");
+        f = fopen(filename, "r");
         PRIV_END ();
         pqueue_update_close_destroy(pq,0);
         if (f == 0) 
                 exit_msg(SBS_EXIT_FAILED,
                          "could not open %s/%ld %s",
-                         queue,jobno,strerror(errno));
+                         queue, jobno, strerror(errno));
         while ( (c=fgetc(f)) != EOF ) {
-                fputc(c,out);
+                fputc(c, out);
         }
         fclose(f);
         return 0;

@@ -1,3 +1,10 @@
+sbs (0.6.19) unstable; urgency=low
+
+  * really allow normal users to see the full job list and queue
+  * statistics
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 24 Jan 2026 15:00:00 +0100
+
 sbs (0.6.18) unstable; urgency=low
 
    * allow normal users to see the full job list and queue statistics

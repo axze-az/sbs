@@ -30,7 +30,6 @@
 #include <pwd.h>
 #include <time.h>
 #include <sys/time.h>
-#include "sbs.h" /* config information */
 
 #ifdef TEST
 #define DAEMON_UID 1
@@ -288,7 +287,7 @@ int pqueue_print(FILE* f, const struct pqueue* q, uid_t uid)
         if (q->_head._entry_cnt)
                 fprintf(f, "# %-7s %-23s %6s %-32s\n",
                         "job-id", "queue time", "prio", "user");
-        for (i=0; i<q->_head._entry_cnt; ++i)
+        for (i=0;i<q->_head._entry_cnt;++i)
                 pqueue_entry_print(f, q->_entries+i, uid);
         return 0;
 }

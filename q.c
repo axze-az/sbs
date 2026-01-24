@@ -340,7 +340,7 @@ int q_job_list(const char* basedir, const char* queue,
         struct pqueue* pq;
         q_cd_job_dir (basedir, queue);
         PRIV_START();
-        pq= pqueue_open_lock_read(".", 0);
+        pq= pqueue_open_lock_read(".",0);
         PRIV_END();
         if (pq == 0) {
                 exit_msg(SBS_EXIT_JOB_LOCK_FAILED,
@@ -367,10 +367,10 @@ int q_job_cat(const char* basedir, const char* queue,
         c= pqueue_check_jobid(pq, jobno, real_uid);
         PRIV_END();
         if (c!=0) {
-                pqueue_update_close_destroy(pq, 0);
+                pqueue_update_close_destroy(pq,0);
                 exit_msg(SBS_EXIT_FAILED,
                          "job %s/%ld does not exist",
-                         queue, jobno);
+                         queue,jobno);
         }
         PRIV_START();
         seteuid(real_uid);
@@ -380,7 +380,7 @@ int q_job_cat(const char* basedir, const char* queue,
         if (f == 0) 
                 exit_msg(SBS_EXIT_FAILED,
                          "could not open %s/%ld %s",
-                         queue, jobno, strerror(errno));
+                         queue,jobno,strerror(errno));
         while ( (c=fgetc(f)) != EOF ) {
                 fputc(c,out);
         }

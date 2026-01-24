@@ -1,3 +1,10 @@
+sbs (0.6.20) unstable; urgency=low
+
+  * improve the error message if a user attempts to cat jobs of
+  * another user
+
+ -- axel zeuner <axel.zeuner@gmx.de>  Sat, 24 Jan 2026 15:15:00 +0100
+
 sbs (0.6.19) unstable; urgency=low
 
   * really allow normal users to see the full job list and queue

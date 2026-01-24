@@ -16,6 +16,13 @@ DAEMON_USERNAME=daemon
 DAEMON_GROUPNAME=daemon
 MAIL=/usr/sbin/sendmail
 
+# set this to non zero to list for normal users, i.e. not only root
+# and daemon, all jobs and not only their own
+SBS_CONFIG_USER_FULL_JOB_LIST=1
+# set this to non zero to list for normal users, i.e. not only root
+# and daemon, the number of queued and processed jobs
+SBS_CONFIG_USER_QUEUE_STATS=1
+
 # Definitions
 DEFS= \
 -DPAM=1 \
@@ -26,7 +33,9 @@ DEFS= \
 -DSBS_QUEUE_DIR=\"${SBS_QUEUE_DIR}\" \
 -DRUN_DIR=\"${RUN_DIR}\" \
 -DDAEMON_USERNAME=\"${DAEMON_USERNAME}\" \
--DDAEMON_GROUPNAME=\"${DAEMON_GROUPNAME}\" 
+-DDAEMON_GROUPNAME=\"${DAEMON_GROUPNAME}\" \
+-DSBS_CONFIG_USER_FULL_JOB_LIST=${SBS_CONFIG_USER_FULL_JOB_LIST} \
+-DSBS_CONFIG_USER_QUEUE_STATS=${SBS_CONFIG_USER_QUEUE_STATS}
 
 CC=gcc
 CXX=g++

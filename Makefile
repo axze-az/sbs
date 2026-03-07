@@ -103,4 +103,8 @@ install: all
 
 distclean: clean
 	-$(RM) *~
+	-$(RM) compile_commands.json
 
+compile_commands.json:
+	$(MAKE) distclean
+	bear -- $(MAKE)

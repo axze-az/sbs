@@ -105,6 +105,6 @@ distclean: clean
 	-$(RM) *~
 	-$(RM) compile_commands.json
 
-compile_commands.json:
+compile_commands.json: Makefile
 	$(MAKE) distclean
 	bear -- $(MAKE)

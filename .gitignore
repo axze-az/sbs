@@ -6,4 +6,5 @@ sbs-list-queues
 sbsd
 *~
 .kdev4
+compile_commands.json
 
